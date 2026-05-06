@@ -103,6 +103,7 @@ class ApplicationDocument(Document):
 class ApplicationCreate(BaseModel):
     job_title: str
     company: str
+    stage: Optional[str] = None
     role: Optional[str] = None
     location: Optional[str] = None
     salary_expectation: Optional[float] = None

@@ -57,7 +57,7 @@ async def get_application(app_id: str):
 async def create_application(payload: ApplicationCreate, user_id: str = "default"):
     app = ApplicationDocument(
         user_id=user_id,
-        **payload.model_dump(),
+        **payload.model_dump(exclude_unset=True),
         timeline=[TimelineEvent(event="Applied", detail="Application created")],
     )
     return await app.insert()
