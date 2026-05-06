@@ -13,6 +13,41 @@ _client = AsyncOpenAI(
 )
 
 
+async def extract_job_fields(raw_text: str) -> dict:
+    """Extract structured job fields from a raw job description using LLM."""
+    prompt = f"""You are a job listing parser. Extract structured information from the raw job description below.
+Return ONLY a valid JSON object with these fields (use null for missing values):
+- title: the job title
+- company: the company name
+- location: office location or city/state
+- remote: boolean, true if remote/hybrid mentioned
+- salary_range: salary range if mentioned (e.g. "$120k-$150k")
+- keywords: array of 10-20 key skills, technologies, tools mentioned
+- tags: array of 3-5 categories like industry, seniority, role type (e.g. ["fintech", "senior", "backend"])
+
+Job description:
+{raw_text[:5000]}
+"""
+    resp = await _client.chat.completions.create(
+        model=settings.LLM_MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=1000,
+        temperature=0.2,
+    )
+    raw = resp.choices[0].message.content or "{}"
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        import re
+        match = re.search(r"\{.*\}", raw, re.DOTALL)
+        if match:
+            try:
+                return json.loads(match.group())
+            except json.JSONDecodeError:
+                pass
+        return {"title": "Untitled", "company": "Unknown"}
+
+
 async def extract_keywords_from_job(job_description: str) -> list[str]:
     """Extract a ranked list of keywords from a job description."""
     prompt = f"""You are a resume expert. Extract the top 15-20 most important keywords (skills,

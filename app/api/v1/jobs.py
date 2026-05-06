@@ -2,9 +2,14 @@
 
 from typing import List, Optional
 
+import logging
+
 from fastapi import APIRouter, HTTPException, Query, status
 
-from app.models.job import JobCreate, JobDocument
+from app.models.job import JobAnalyzeRequest, JobCreate, JobDocument
+from app.services.tailoring_service import extract_job_fields
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Jobs"])
 
@@ -38,6 +43,35 @@ async def get_job(job_id: str):
     return job
 
 
+@router.post("/jobs/analyze", response_model=JobDocument, status_code=status.HTTP_201_CREATED)
+async def analyze_and_create_job(payload: JobAnalyzeRequest, user_id: str = "default"):
+    """Paste a raw job description, let LLM extract structured fields, and save."""
+    if not payload.raw_text.strip():
+        raise HTTPException(status_code=400, detail="Job description is required")
+
+    try:
+        extracted = await extract_job_fields(payload.raw_text)
+    except Exception as e:
+        print('---------------------------------------------------')
+        print(e)
+        logger.exception("LLM extraction failed")
+        raise HTTPException(status_code=502, detail=f"AI extraction failed: {e}")
+
+    job = JobDocument(
+        user_id=user_id,
+        title=extracted.get("title") or "Untitled",
+        company=extracted.get("company") or "Unknown",
+        description=payload.raw_text.strip(),
+        location=extracted.get("location"),
+        remote=bool(extracted.get("remote", False)),
+        salary_range=extracted.get("salary_range"),
+        source_name="ai-analyzed",
+        extracted_keywords=extracted.get("keywords", []),
+        tags=extracted.get("tags", []),
+    )
+    return await job.insert()
+
+
 @router.post("/jobs", response_model=JobDocument, status_code=status.HTTP_201_CREATED)
 async def create_job(payload: JobCreate, user_id: str = "default"):
     job = JobDocument(user_id=user_id, **payload.model_dump())
@@ -61,3 +95,6 @@ async def delete_job(job_id: str):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     await job.delete()
+
+
+

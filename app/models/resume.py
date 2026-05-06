@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from beanie import Document
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_serializer
 
 
 class ResumeSection(BaseModel):
@@ -14,6 +14,13 @@ class ResumeSection(BaseModel):
 
 class ResumeDocument(Document):
     """Each uploaded or tailored resume version."""
+
+    @model_serializer(mode="wrap")
+    def _ser(self, serializer, info):
+        data = serializer(self)
+        if "_id" in data:
+            data["id"] = str(data.pop("_id"))
+        return data
 
     user_id: str = Field(default="default")
     original_filename: str

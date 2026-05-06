@@ -1,23 +1,31 @@
 """Centralised config via pydantic-settings, loaded from .env."""
 
+from pathlib import Path
 from typing import List
 
-from pydantic import field_validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _parse_origins(v: str) -> List[str]:
+    """Parse CORS_ORIGINS from comma-separated string to list."""
+    return [o.strip() for o in v.split(",") if o.strip()]
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=Path(__file__).resolve().parent.parent.parent / ".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
     # ── App ──────────────────────────────────
     APP_ENV: str = "development"
     DEBUG: bool = True
-    CORS_ORIGINS: List[str] = ["http://localhost:5173"]
+    CORS_ORIGINS: str = "http://localhost:5173"
 
-    @field_validator("CORS_ORIGINS", mode="before")
-    @classmethod
-    def parse_cors_origins(cls, v):
-        if isinstance(v, str):
-            return [origin.strip() for origin in v.split(",")]
-        return v
+    @property
+    def cors_origins_list(self) -> List[str]:
+        return _parse_origins(self.CORS_ORIGINS)
 
     # ── MongoDB ──────────────────────────────
     MONGODB_URI: str = "mongodb://admin:midasdev@localhost:27017/midas_click?authSource=admin"
@@ -40,9 +48,7 @@ class Settings(BaseSettings):
     # ── LLM ──────────────────────────────────
     LLM_API_KEY: str = ""
     LLM_BASE_URL: str = "https://api.deepseek.com/v1"
-    LLM_MODEL: str = "deepseek-v4-pro"
-
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    LLM_MODEL: str = "deepseek-chat"
 
 
 settings = Settings()
