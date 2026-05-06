@@ -48,6 +48,28 @@ Job description:
         return {"title": "Untitled", "company": "Unknown"}
 
 
+async def generate_tailored_label(job_description: str, keywords: list[str], job_title: str = "") -> str:
+    """Generate a short human-readable label describing the resume's target."""
+    top_kw = keywords[:8] if keywords else []
+    prompt = f"""Given this job context, generate a short label (max 8 words) that describes what this
+resume is optimized for. Format examples: "Backend / Python / AWS", "Frontend React Engineer",
+"AI/ML Engineer", "Full-Stack / Node.js / React". Use a tech-focused, concise style.
+
+Job title: {job_title or "N/A"}
+Top keywords: {", ".join(top_kw) if top_kw else "none"}
+Context: {job_description[:800]}
+
+Return ONLY the label text, nothing else."""
+    resp = await _client.chat.completions.create(
+        model=settings.LLM_MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=50,
+        temperature=0.3,
+    )
+    label = (resp.choices[0].message.content or "").strip().strip('"')
+    return label or "Tailored Resume"
+
+
 async def extract_keywords_from_job(job_description: str) -> list[str]:
     """Extract a ranked list of keywords from a job description."""
     prompt = f"""You are a resume expert. Extract the top 15-20 most important keywords (skills,

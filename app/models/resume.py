@@ -33,6 +33,7 @@ class ResumeDocument(Document):
     parent_resume_id: Optional[str] = None  # links tailored version → source
     tailored_for_job_id: Optional[str] = None
     tailored_prompt: Optional[str] = None   # LLM prompt used
+    tailored_label: Optional[str] = None    # e.g. "Backend / Python / Go"
 
     # Performance tracking
     total_applications: int = 0
