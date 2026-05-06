@@ -8,7 +8,6 @@ from fastapi import APIRouter, HTTPException, Query, status
 from app.models.application import (
     ApplicationCreate,
     ApplicationDocument,
-    ApplicationStage,
     ApplicationUpdate,
     CommunicationCreate,
     CommunicationLog,
@@ -22,18 +21,25 @@ router = APIRouter(tags=["Applications"])
 # ── LIST ──────────────────────────────────────────
 @router.get("/applications", response_model=List[ApplicationDocument])
 async def list_applications(
-    stage: Optional[ApplicationStage] = None,
+    stage: Optional[str] = None,
     tag: Optional[str] = None,
     company: Optional[str] = None,
+    search: Optional[str] = None,
     user_id: str = "default",
 ):
-    filters = {"user_id": user_id}
+    filters: dict = {"user_id": user_id}
     if stage:
         filters["stage"] = stage
     if tag:
-        filters["tags"] = tag
+        filters["tags"] = {"$regex": tag, "$options": "i"}
     if company:
         filters["company"] = {"$regex": company, "$options": "i"}
+    if search:
+        filters["$or"] = [
+            {"job_title": {"$regex": search, "$options": "i"}},
+            {"company": {"$regex": search, "$options": "i"}},
+            {"location": {"$regex": search, "$options": "i"}},
+        ]
     return await ApplicationDocument.find(filters).sort("-updated_at").to_list()
 
 
