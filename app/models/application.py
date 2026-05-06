@@ -27,6 +27,14 @@ KANBAN_ORDER = [
     ApplicationStage.OFFER,
 ]
 
+DEFAULT_STAGES: list[str] = [
+    ApplicationStage.APPLIED.value,
+    ApplicationStage.PHONE_SCREEN.value,
+    ApplicationStage.TECHNICAL.value,
+    ApplicationStage.ONSITE.value,
+    ApplicationStage.OFFER.value,
+]
+
 
 # ── Embedded sub-documents ───────────────────
 class CommunicationLog(BaseModel):
@@ -61,7 +69,7 @@ class ApplicationDocument(Document):
     salary_expectation: Optional[float] = None
     salary_currency: str = "USD"
 
-    stage: ApplicationStage = ApplicationStage.APPLIED
+    stage: str = ApplicationStage.APPLIED.value
     recruiter_name: Optional[str] = None
     initial_contact_date: Optional[datetime] = None
     resume_ids: List[str] = Field(default_factory=list)
@@ -124,7 +132,7 @@ class ApplicationUpdate(BaseModel):
 
 
 class StageChange(BaseModel):
-    stage: ApplicationStage
+    stage: str
     detail: Optional[str] = None
 
 

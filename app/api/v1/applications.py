@@ -90,7 +90,7 @@ async def move_stage(app_id: str, payload: StageChange):
     old_stage = app.stage
     app.stage = payload.stage
     app.timeline.append(TimelineEvent(
-        event=f"Moved: {old_stage.value} → {payload.stage.value}",
+        event=f"Moved: {old_stage} → {payload.stage}",
         detail=payload.detail,
     ))
     app.updated_at = datetime.utcnow()
