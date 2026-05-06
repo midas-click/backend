@@ -4,17 +4,13 @@ from datetime import datetime
 from typing import List, Optional
 
 from beanie import Document
-from pydantic import BaseModel, Field, model_serializer
+from pydantic import BaseModel, Field
+
+from app.models.base import MidasDocument
 
 
-class JobDocument(Document):
+class JobDocument(Document, MidasDocument):
 
-    @model_serializer(mode="wrap")
-    def _ser(self, serializer, info):
-        data = serializer(self)
-        if "_id" in data:
-            data["id"] = str(data.pop("_id"))
-        return data
     user_id: str = Field(default="default")
 
     title: str

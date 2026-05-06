@@ -5,7 +5,9 @@ from enum import Enum
 from typing import List, Optional
 
 from beanie import Document, Indexed
-from pydantic import BaseModel, Field, model_serializer
+from pydantic import BaseModel, Field
+
+from app.models.base import MidasDocument
 
 
 # ── Enums ────────────────────────────────────
@@ -51,15 +53,8 @@ class TimelineEvent(BaseModel):
 
 
 # ── Main document ────────────────────────────
-class ApplicationDocument(Document):
+class ApplicationDocument(Document, MidasDocument):
     """Stores a single job application tracked through the pipeline."""
-
-    @model_serializer(mode="wrap")
-    def _ser(self, serializer, info):
-        data = serializer(self)
-        if "_id" in data:
-            data["id"] = str(data.pop("_id"))
-        return data
 
     user_id: str = Field(default="default")  # placeholder — will be JWT subject later
     job_title: str
