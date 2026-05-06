@@ -1,5 +1,6 @@
 """Resumes API — upload, list, parse, version management."""
 
+import logging
 import uuid
 from datetime import datetime
 from typing import List, Optional
@@ -8,7 +9,9 @@ from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
 from app.models.resume import ResumeDocument
 from app.services.resume_parser import parse_resume_bytes
-from app.services.s3_service import generate_presigned_upload_url, generate_presigned_download_url
+from app.services.s3_service import generate_presigned_upload_url, generate_presigned_download_url, upload_to_s3
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Resumes"])
 
@@ -44,23 +47,13 @@ async def upload_resume(file: UploadFile = File(...), user_id: str = "default"):
     raw_text, sections = await parse_resume_bytes(file.filename or "unknown", content)
     raw_text_trim = raw_text[:50000]  # cap stored text
 
-    # Store in S3 (optional — skip if no S3 configured)
+    # Store in S3
     s3_key = f"resumes/{uuid.uuid4().hex}/{file.filename}"
     s3_url = None
     try:
-        import boto3
-        from app.config import settings
-        client = boto3.client(
-            "s3",
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-            region_name=settings.AWS_REGION,
-        )
-        client.put_object(Bucket=settings.S3_BUCKET_NAME, Key=s3_key, Body=content, ContentType=file.content_type or "application/octet-stream")
-        s3_url = generate_presigned_download_url(s3_key)
-    except Exception:
-        # S3 unavailable — store locally; URL will be None
-        pass
+        s3_url = await upload_to_s3(s3_key, content, file.content_type or "application/pdf")
+    except Exception as e:
+        logger.warning("S3 upload skipped: %s", e)
 
     resume = ResumeDocument(
         user_id=user_id,

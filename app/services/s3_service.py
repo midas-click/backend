@@ -47,3 +47,15 @@ def generate_presigned_download_url(key: str, expires: int = 3600) -> str:
         Params={"Bucket": settings.S3_BUCKET_NAME, "Key": key},
         ExpiresIn=expires,
     )
+
+
+async def upload_to_s3(key: str, body: bytes, content_type: str = "application/pdf") -> str:
+    """Upload bytes to S3 directly and return a pre-signed download URL."""
+    client = _get_client()
+    client.put_object(
+        Bucket=settings.S3_BUCKET_NAME,
+        Key=key,
+        Body=body,
+        ContentType=content_type,
+    )
+    return generate_presigned_download_url(key)
