@@ -2,6 +2,7 @@
 
 from typing import List
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -10,6 +11,13 @@ class Settings(BaseSettings):
     APP_ENV: str = "development"
     DEBUG: bool = True
     CORS_ORIGINS: List[str] = ["http://localhost:5173"]
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v):
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",")]
+        return v
 
     # ── MongoDB ──────────────────────────────
     MONGODB_URI: str = "mongodb://admin:midasdev@localhost:27017/midas_click?authSource=admin"

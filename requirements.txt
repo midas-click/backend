@@ -14,7 +14,7 @@ python-dotenv==1.0.1
 
 # MongoDB
 motor==3.7.0
-beanie==1.28.2
+beanie>=1.30.0,<2.0.0
 
 # Redis
 redis==5.2.1
