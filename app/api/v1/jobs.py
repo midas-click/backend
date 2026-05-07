@@ -6,7 +6,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from app.models.job import JobAnalyzeRequest, JobCreate, JobDocument
+from app.models.job import JobAnalyzeRequest, JobCreate, JobDocument, JobUpdate
 from app.services.tailoring_service import extract_job_fields
 
 logger = logging.getLogger(__name__)
@@ -76,6 +76,16 @@ async def analyze_and_create_job(payload: JobAnalyzeRequest, user_id: str = "def
 async def create_job(payload: JobCreate, user_id: str = "default"):
     job = JobDocument(user_id=user_id, **payload.model_dump())
     return await job.insert()
+
+
+@router.patch("/jobs/{job_id}", response_model=JobDocument)
+async def update_job(job_id: str, payload: JobUpdate):
+    job = await JobDocument.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(job, field, value)
+    return await job.save()
 
 
 @router.patch("/jobs/{job_id}/status", response_model=JobDocument)

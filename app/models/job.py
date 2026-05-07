@@ -53,3 +53,16 @@ class JobAnalyzeRequest(BaseModel):
 
 class JobImportURL(BaseModel):
     url: str
+
+
+class JobUpdate(BaseModel):
+    title: Optional[str] = None
+    company: Optional[str] = None
+    description: Optional[str] = None
+    location: Optional[str] = None
+    remote: Optional[bool] = None
+    salary_range: Optional[str] = None
+    source_url: Optional[str] = None
+    status: Optional[str] = None
+    extracted_keywords: Optional[List[str]] = None
+    tags: Optional[List[str]] = None
