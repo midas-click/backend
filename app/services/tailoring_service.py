@@ -1,4 +1,4 @@
-"""LLM service — DeepSeek (OpenAI-compatible) for tailoring & match scoring."""
+"""LLM service -- DeepSeek (OpenAI-compatible) for tailoring & match scoring."""
 
 import json
 from typing import Optional
@@ -15,19 +15,21 @@ _client = AsyncOpenAI(
 
 async def extract_job_fields(raw_text: str) -> dict:
     """Extract structured job fields from a raw job description using LLM."""
-    prompt = f"""You are a job listing parser. Extract structured information from the raw job description below.
-Return ONLY a valid JSON object with these fields (use null for missing values):
-- title: the job title
-- company: the company name
-- location: office location or city/state
-- remote: boolean, true if remote/hybrid mentioned
-- salary_range: salary range if mentioned (e.g. "$120k-$150k")
-- keywords: array of 10-20 key skills, technologies, tools mentioned
-- tags: array of 3-5 categories like industry, seniority, role type (e.g. ["fintech", "senior", "backend"])
+    prompt = f"""Extract structured information from this job posting. Return ONLY valid JSON with these fields:
 
-Job description:
-{raw_text[:5000]}
-"""
+- title: Job title (first 1-3 lines)
+- company: Hiring company (ignore location/industry/metadata)
+- location: Office location(s) mentioned
+- remote: true if job is remote/hybrid, false otherwise
+- salary_range: Compensation; use format like "120K-150K" or "Competitive"
+- keywords: Array of 10-20 technical skills, tools, or technologies
+- tags: Array of 3-5 labels summarizing industry, seniority, and role type
+
+Output example:
+{{"title":"Senior Backend Engineer","company":"Acme Corp","location":"London, UK","remote":true,"salary_range":"GBP 80K-100K","keywords":["Python","AWS","Kubernetes"],"tags":["fintech","senior","backend"]}}
+
+Job posting:
+{raw_text[:5000]}"""
     resp = await _client.chat.completions.create(
         model=settings.LLM_MODEL,
         messages=[{"role": "user", "content": prompt}],
@@ -105,7 +107,7 @@ async def generate_tailored_resume(
     """Generate a tailored version of the resume that incorporates missing keywords naturally."""
     prompt = f"""You are a professional resume writer. Given a base resume and a job description, rewrite
 the resume to incorporate the following MISSING KEYWORDS naturally into the existing experience,
-skills, and summary sections. Do NOT fabricate experiences or jobs — only rephrase and emphasize
+skills, and summary sections. Do NOT fabricate experiences or jobs -- only rephrase and emphasize
 existing content to match the job. Preserve the original structure and company names.
 
 === BASE RESUME ===

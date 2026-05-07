@@ -50,10 +50,8 @@ async def analyze_and_create_job(payload: JobAnalyzeRequest, user_id: str = "def
         raise HTTPException(status_code=400, detail="Job description is required")
 
     try:
-        extracted = await extract_job_fields(payload.raw_text)
+        extracted = await extract_job_fields(payload.raw_text.strip())
     except Exception as e:
-        print('---------------------------------------------------')
-        print(e)
         logger.exception("LLM extraction failed")
         raise HTTPException(status_code=502, detail=f"AI extraction failed: {e}")
 
