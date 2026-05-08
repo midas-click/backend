@@ -49,6 +49,7 @@ class JobCreate(BaseModel):
 
 class JobAnalyzeRequest(BaseModel):
     raw_text: str
+    source_url: str = ""
 
 
 class JobImportURL(BaseModel):
