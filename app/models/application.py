@@ -18,7 +18,6 @@ class ApplicationStage(str, Enum):
     TEAM_INTERVIEW = "team_interview"
     OFFER = "offer"
     REJECTED = "rejected"
-    WITHDRAWN = "withdrawn"
 
 
 # ── Embedded sub-documents ───────────────────
