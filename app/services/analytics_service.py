@@ -2,7 +2,7 @@
 
 from typing import Any, Dict, List
 
-from app.models.application import ApplicationStage, ApplicationDocument
+from app.models.application import ApplicationDocument
 from app.models.resume import ResumeDocument
 
 
@@ -20,25 +20,22 @@ async def get_overview_metrics(user_id: str = "default") -> Dict[str, Any]:
                 ],
                 "with_interview": [
                     {"$match": {"stage": {"$in": [
-                        ApplicationStage.PHONE_SCREEN,
-                        ApplicationStage.TECHNICAL,
-                        ApplicationStage.ONSITE,
-                        ApplicationStage.OFFER,
+                        "phone_screen",
+                        "technical",
+                        "team_interview",
+                        "offer",
                     ]}}},
                     {"$count": "count"},
                 ],
                 "offers": [
-                    {"$match": {"stage": ApplicationStage.OFFER}},
+                    {"$match": {"stage": "offer"}},
                     {"$count": "count"},
                 ],
                 "rejections": [
-                    {"$match": {"stage": ApplicationStage.REJECTED}},
+                    {"$match": {"stage": "rejected"}},
                     {"$count": "count"},
                 ],
-                "avg_salary": [
-                    {"$match": {"salary_expectation": {"$type": "double"}}},
-                    {"$group": {"_id": None, "avg": {"$avg": "$salary_expectation"}}},
-                ],
+
             },
         },
     ]
@@ -52,14 +49,11 @@ async def get_overview_metrics(user_id: str = "default") -> Dict[str, Any]:
     interview_count = facet["with_interview"][0]["count"] if facet["with_interview"] else 0
     offer_count = facet["offers"][0]["count"] if facet["offers"] else 0
     rejection_count = facet["rejections"][0]["count"] if facet["rejections"] else 0
-    avg_salary = facet["avg_salary"][0]["avg"] if facet["avg_salary"] else 0
-
     return {
         "total_applications": total,
         "interview_rate": round(interview_count / total * 100, 1) if total else 0,
         "offer_rate": round(offer_count / total * 100, 1) if total else 0,
         "rejection_rate": round(rejection_count / total * 100, 1) if total else 0,
-        "average_salary_expectation": round(avg_salary, 2),
         "by_stage": {item["_id"]: item["count"] for item in facet["by_stage"]},
     }
 
@@ -85,15 +79,15 @@ async def get_resume_performance(user_id: str = "default") -> list[Dict[str, Any
             "interviews": {
                 "$sum": {
                     "$cond": [{"$in": ["$stage", [
-                        ApplicationStage.PHONE_SCREEN,
-                        ApplicationStage.TECHNICAL,
-                        ApplicationStage.ONSITE,
-                        ApplicationStage.OFFER,
+                        "phone_screen",
+                        "technical",
+                        "team_interview",
+                        "offer",
                     ]]}, 1, 0],
                 },
             },
             "offers": {
-                "$sum": {"$cond": [{"$eq": ["$stage", ApplicationStage.OFFER]}, 1, 0]},
+                "$sum": {"$cond": [{"$eq": ["$stage", "offer"]}, 1, 0]},
             },
         }},
     ]
@@ -125,15 +119,15 @@ async def get_industry_trends(user_id: str = "default") -> list[Dict[str, Any]]:
             "interviews": {
                 "$sum": {
                     "$cond": [{"$in": ["$stage", [
-                        ApplicationStage.PHONE_SCREEN,
-                        ApplicationStage.TECHNICAL,
-                        ApplicationStage.ONSITE,
-                        ApplicationStage.OFFER,
+                        "phone_screen",
+                        "technical",
+                        "team_interview",
+                        "offer",
                     ]]}, 1, 0],
                 },
             },
             "offers": {
-                "$sum": {"$cond": [{"$eq": ["$stage", ApplicationStage.OFFER]}, 1, 0]},
+                "$sum": {"$cond": [{"$eq": ["$stage", "offer"]}, 1, 0]},
             },
         }},
         {"$sort": {"total": -1}},
@@ -158,6 +152,5 @@ def _empty_overview() -> Dict[str, Any]:
         "interview_rate": 0,
         "offer_rate": 0,
         "rejection_rate": 0,
-        "average_salary_expectation": 0,
         "by_stage": {},
     }

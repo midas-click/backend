@@ -49,10 +49,6 @@ class JobAnalyzeRequest(BaseModel):
     source_url: str = ""
 
 
-class JobImportURL(BaseModel):
-    url: str
-
-
 class JobUpdate(BaseModel):
     title: Optional[str] = None
     company: Optional[str] = None

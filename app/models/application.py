@@ -15,27 +15,10 @@ class ApplicationStage(str, Enum):
     APPLIED = "applied"
     PHONE_SCREEN = "phone_screen"
     TECHNICAL = "technical"
-    ONSITE = "onsite"
+    TEAM_INTERVIEW = "team_interview"
     OFFER = "offer"
     REJECTED = "rejected"
     WITHDRAWN = "withdrawn"
-
-
-KANBAN_ORDER = [
-    ApplicationStage.APPLIED,
-    ApplicationStage.PHONE_SCREEN,
-    ApplicationStage.TECHNICAL,
-    ApplicationStage.ONSITE,
-    ApplicationStage.OFFER,
-]
-
-DEFAULT_STAGES: list[str] = [
-    ApplicationStage.APPLIED.value,
-    ApplicationStage.PHONE_SCREEN.value,
-    ApplicationStage.TECHNICAL.value,
-    ApplicationStage.ONSITE.value,
-    ApplicationStage.OFFER.value,
-]
 
 
 # ── Embedded sub-documents ───────────────────
@@ -76,7 +59,7 @@ class ApplicationDocument(Document, MidasDocument):
 
     tags: List[str] = Field(default_factory=list)  # e.g. ["react", "healthtech"]
 
-    match_score: Optional[str] = None         # 0-100
+    match_score: Optional[float] = None         # 0-100
     match_explanation: Optional[str] = None
 
     communication_log: List[CommunicationLog] = Field(default_factory=list)
@@ -121,7 +104,7 @@ class ApplicationUpdate(BaseModel):
     initial_contact_date: Optional[datetime] = None
     resume_ids: Optional[List[str]] = None
     tags: Optional[List[str]] = None
-    match_score: Optional[str] = None
+    match_score: Optional[float] = None
     match_explanation: Optional[str] = None
     follow_up_date: Optional[datetime] = None
     notes: Optional[str] = None
