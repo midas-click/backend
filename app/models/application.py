@@ -5,7 +5,7 @@ from enum import Enum
 from typing import List, Optional
 
 from beanie import Document, Indexed
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.models.base import MidasDocument
 
@@ -57,21 +57,26 @@ class ApplicationDocument(Document, MidasDocument):
     """Stores a single job application tracked through the pipeline."""
 
     user_id: str = Field(default="default")  # placeholder — will be JWT subject later
+    job_id: Optional[str] = None  # links to source Job
     job_title: str
     company: str
-    role: Optional[str] = None
     location: Optional[str] = None
-    salary_expectation: Optional[float] = None
-    salary_currency: str = "USD"
+    salary_expectation: Optional[str] = None
+
+    @field_validator("salary_expectation", mode="before")
+    @classmethod
+    def _coerce_salary(cls, v):
+        if v is None:
+            return None
+        return str(int(v)) if isinstance(v, float) and v == int(v) else str(v) if isinstance(v, (int, float)) else str(v)
 
     stage: str = ApplicationStage.APPLIED.value
-    recruiter_name: Optional[str] = None
     initial_contact_date: Optional[datetime] = None
     resume_ids: List[str] = Field(default_factory=list)
 
     tags: List[str] = Field(default_factory=list)  # e.g. ["react", "healthtech"]
 
-    match_score: Optional[float] = None         # 0-100
+    match_score: Optional[str] = None         # 0-100
     match_explanation: Optional[str] = None
 
     communication_log: List[CommunicationLog] = Field(default_factory=list)
@@ -96,14 +101,12 @@ class ApplicationDocument(Document, MidasDocument):
 
 # ── API request / response schemas (Pydantic) ──
 class ApplicationCreate(BaseModel):
+    job_id: Optional[str] = None
     job_title: str
     company: str
     stage: Optional[str] = None
-    role: Optional[str] = None
     location: Optional[str] = None
-    salary_expectation: Optional[float] = None
-    salary_currency: str = "USD"
-    recruiter_name: Optional[str] = None
+    salary_expectation: Optional[str] = None
     initial_contact_date: Optional[datetime] = None
     resume_ids: List[str] = Field(default_factory=list)
     tags: List[str] = Field(default_factory=list)
@@ -113,15 +116,12 @@ class ApplicationCreate(BaseModel):
 class ApplicationUpdate(BaseModel):
     job_title: Optional[str] = None
     company: Optional[str] = None
-    role: Optional[str] = None
     location: Optional[str] = None
-    salary_expectation: Optional[float] = None
-    salary_currency: Optional[str] = None
-    recruiter_name: Optional[str] = None
+    salary_expectation: Optional[str] = None
     initial_contact_date: Optional[datetime] = None
     resume_ids: Optional[List[str]] = None
     tags: Optional[List[str]] = None
-    match_score: Optional[float] = None
+    match_score: Optional[str] = None
     match_explanation: Optional[str] = None
     follow_up_date: Optional[datetime] = None
     notes: Optional[str] = None

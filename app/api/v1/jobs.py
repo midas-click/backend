@@ -62,7 +62,6 @@ async def analyze_and_create_job(payload: JobAnalyzeRequest, user_id: str = "def
         salary_range=extracted.get("salary_range"),
         source_name="ai-analyzed",
         source_url=payload.source_url or None,
-        extracted_keywords=extracted.get("keywords", []),
         tags=extracted.get("tags", []),
     )
     return await job.insert()

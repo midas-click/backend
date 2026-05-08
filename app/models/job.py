@@ -23,7 +23,6 @@ class JobDocument(Document, MidasDocument):
     source_url: Optional[str] = None
     source_name: str = "manual"  # manual | linkedin | indeed | greenhouse | ...
 
-    extracted_keywords: List[str] = Field(default_factory=list)
 
     tags: List[str] = Field(default_factory=list)
 
@@ -62,5 +61,4 @@ class JobUpdate(BaseModel):
     remote: Optional[bool] = None
     salary_range: Optional[str] = None
     source_url: Optional[str] = None
-    extracted_keywords: Optional[List[str]] = None
     tags: Optional[List[str]] = None

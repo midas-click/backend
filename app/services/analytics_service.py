@@ -36,7 +36,7 @@ async def get_overview_metrics(user_id: str = "default") -> Dict[str, Any]:
                     {"$count": "count"},
                 ],
                 "avg_salary": [
-                    {"$match": {"salary_expectation": {"$gte": 0}}},
+                    {"$match": {"salary_expectation": {"$type": "double"}}},
                     {"$group": {"_id": None, "avg": {"$avg": "$salary_expectation"}}},
                 ],
             },

@@ -22,11 +22,10 @@ RULES:
 - location: The office location or list of cities. Look for "Location", city names, or country names.
 - remote: true if remote/hybrid is mentioned, false otherwise.
 - salary_range: The compensation if shown. Examples: "$120k-$150k", "GBP 62K - 72K", "EUR 90.000-110.000". Include currency symbol. If only "competitive salary" is stated, use "Competitive".
-- keywords: An array of 10-20 skills, technologies, and tools from the posting.
-- tags: An array of 3-5 labels like ["fintech", "senior", "backend"] for industry, level, and role type.
+- tags: An array of 10-20 labels including skills, technologies, industry, seniority, and role type. E.g. ["Python", "AWS", "fintech", "senior", "backend"]
 
 EXAMPLE OUTPUT:
-{{"title":"Senior Backend Engineer","company":"Acme Corp","location":"London, UK","remote":true,"salary_range":"GBP 80K-100K","keywords":["Python","AWS","Kubernetes"],"tags":["fintech","senior","backend"]}}
+{{"title":"Senior Backend Engineer","company":"Acme Corp","location":"London, UK","remote":true,"salary_range":"GBP 80K-100K","tags":["Python","AWS","Kubernetes","fintech","senior","backend"]}}
 
 JOB POSTING:
 {raw_text[:6000]}"""
