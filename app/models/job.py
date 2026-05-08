@@ -23,8 +23,6 @@ class JobDocument(Document, MidasDocument):
     source_url: Optional[str] = None
     source_name: str = "manual"  # manual | linkedin | indeed | greenhouse | ...
 
-    status: str = "saved"  # saved | applied | archived
-
     extracted_keywords: List[str] = Field(default_factory=list)
 
     tags: List[str] = Field(default_factory=list)
@@ -33,7 +31,7 @@ class JobDocument(Document, MidasDocument):
 
     class Settings:
         name = "jobs"
-        indexes = ["user_id", "status", "company"]
+        indexes = ["user_id", "company"]
 
 
 class JobCreate(BaseModel):
@@ -64,6 +62,5 @@ class JobUpdate(BaseModel):
     remote: Optional[bool] = None
     salary_range: Optional[str] = None
     source_url: Optional[str] = None
-    status: Optional[str] = None
     extracted_keywords: Optional[List[str]] = None
     tags: Optional[List[str]] = None

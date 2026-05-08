@@ -16,16 +16,13 @@ router = APIRouter(tags=["Jobs"])
 
 @router.get("/jobs", response_model=List[JobDocument])
 async def list_jobs(
-    status_filter: Optional[str] = Query(None, alias="status"),
     tag: Optional[str] = None,
     search: Optional[str] = None,
     user_id: str = "default",
 ):
     filters = {"user_id": user_id}
-    if status_filter:
-        filters["status"] = status_filter
     if tag:
-        filters["tags"] = tag
+        filters["tags"] = {"": tag, "": "i"}
     if search:
         filters["$or"] = [
             {"title": {"$regex": search, "$options": "i"}},
@@ -84,17 +81,6 @@ async def update_job(job_id: str, payload: JobUpdate):
         raise HTTPException(status_code=404, detail="Job not found")
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(job, field, value)
-    return await job.save()
-
-
-@router.patch("/jobs/{job_id}/status", response_model=JobDocument)
-async def update_job_status(job_id: str, status_val: str = Query(..., alias="status")):
-    job = await JobDocument.get(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    if status_val not in ("saved", "applied", "archived"):
-        raise HTTPException(status_code=400, detail="Invalid status")
-    job.status = status_val
     return await job.save()
 
 
