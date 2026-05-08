@@ -25,11 +25,6 @@ class ResumeDocument(Document, MidasDocument):
     raw_text: Optional[str] = None          # full extracted text
     sections: List[ResumeSection] = Field(default_factory=list)
 
-    parent_resume_id: Optional[str] = None  # links tailored version → source
-    tailored_for_job_id: Optional[str] = None
-    tailored_prompt: Optional[str] = None   # LLM prompt used
-    tailored_label: Optional[str] = None    # e.g. "Backend / Python / Go"
-
     # Performance tracking
     total_applications: int = 0
     interview_count: int = 0
@@ -44,6 +39,4 @@ class ResumeDocument(Document, MidasDocument):
         name = "resumes"
         indexes = [
             "user_id",
-            "parent_resume_id",
-            "tailored_for_job_id",
         ]

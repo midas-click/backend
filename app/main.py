@@ -38,13 +38,11 @@ def create_app() -> FastAPI:
     from app.api.v1.resumes import router as resumes_router
     from app.api.v1.jobs import router as jobs_router
     from app.api.v1.analytics import router as analytics_router
-    from app.api.v1.tailoring import router as tailoring_router
 
     app.include_router(apps_router, prefix="/api/v1")
     app.include_router(resumes_router, prefix="/api/v1")
     app.include_router(jobs_router, prefix="/api/v1")
     app.include_router(analytics_router, prefix="/api/v1")
-    app.include_router(tailoring_router, prefix="/api/v1")
 
     @app.get("/health")
     async def health():

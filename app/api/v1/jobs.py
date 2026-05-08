@@ -7,7 +7,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.models.job import JobAnalyzeRequest, JobCreate, JobDocument, JobUpdate
-from app.services.tailoring_service import extract_job_fields
+from app.services.llm_service import extract_job_fields
 
 logger = logging.getLogger(__name__)
 

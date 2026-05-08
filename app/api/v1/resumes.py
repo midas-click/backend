@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from pydantic import BaseModel
 
 from app.models.resume import ResumeDocument
 from app.services.resume_parser import parse_resume_bytes
@@ -70,11 +71,8 @@ async def upload_resume(file: UploadFile = File(...), user_id: str = "default"):
 
 # ── LIST ──────────────────────────────────────────
 @router.get("/resumes", response_model=List[ResumeDocument])
-async def list_resumes(user_id: str = "default", parent_only: bool = False):
-    query = {"user_id": user_id}
-    if parent_only:
-        query["parent_resume_id"] = None
-    return await ResumeDocument.find(query).sort("-created_at").to_list()
+async def list_resumes(user_id: str = "default"):
+    return await ResumeDocument.find({"user_id": user_id}).sort("-created_at").to_list()
 
 
 # ── GET ───────────────────────────────────────────
@@ -86,6 +84,20 @@ async def get_resume(resume_id: str):
     return resume
 
 
+class ResumeUpdate(BaseModel):
+    tags: Optional[List[str]] = None
+
+
+@router.patch("/resumes/{resume_id}", response_model=ResumeDocument)
+async def update_resume(resume_id: str, payload: ResumeUpdate):
+    resume = await ResumeDocument.get(resume_id)
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found")
+    if payload.tags is not None:
+        resume.tags = payload.tags
+    return await resume.save()
+
+
 # ── DELETE ────────────────────────────────────────
 @router.delete("/resumes/{resume_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_resume(resume_id: str):
@@ -94,15 +106,3 @@ async def delete_resume(resume_id: str):
         raise HTTPException(status_code=404, detail="Resume not found")
     await resume.delete()
 
-
-# ── VERSION HISTORY ───────────────────────────────
-@router.get("/resumes/{resume_id}/versions", response_model=List[ResumeDocument])
-async def get_resume_versions(resume_id: str):
-    """Get all tailored versions derived from a base resume."""
-    base = await ResumeDocument.get(resume_id)
-    if not base:
-        raise HTTPException(status_code=404, detail="Resume not found")
-
-    return await ResumeDocument.find(
-        ResumeDocument.parent_resume_id == resume_id,
-    ).sort("version").to_list()
