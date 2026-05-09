@@ -52,7 +52,7 @@ async def get_overview_metrics(user_id: str = "default") -> Dict[str, Any]:
     return {
         "total_applications": total,
         "interview_rate": round(interview_count / total * 100, 1) if total else 0,
-        "offer_rate": round(offer_count / total * 100, 1) if total else 0,
+        "offer_rate": round(offer_count / interview_count * 100, 1) if interview_count else 0,
         "rejection_rate": round(rejection_count / total * 100, 1) if total else 0,
         "by_stage": {item["_id"]: item["count"] for item in facet["by_stage"]},
     }
