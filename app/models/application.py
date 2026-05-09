@@ -4,8 +4,8 @@ from datetime import datetime
 from enum import Enum
 from typing import List, Optional
 
-from beanie import Document, Indexed
-from pydantic import BaseModel, Field, field_validator
+from beanie import Document
+from pydantic import BaseModel, Field
 
 from app.models.base import MidasDocument
 
@@ -43,18 +43,13 @@ class ApplicationDocument(Document, MidasDocument):
     job_title: str
     company: str
     location: Optional[str] = None
+    source_url: Optional[str] = None  # denormalized from Job — survives job deletion
     salary_expectation: Optional[str] = None
-
-    @field_validator("salary_expectation", mode="before")
-    @classmethod
-    def _coerce_salary(cls, v):
-        if v is None:
-            return None
-        return str(int(v)) if isinstance(v, float) and v == int(v) else str(v) if isinstance(v, (int, float)) else str(v)
 
     stage: str = ApplicationStage.APPLIED.value
     initial_contact_date: Optional[datetime] = None
-    resume_ids: List[str] = Field(default_factory=list)
+    resume_id: Optional[str] = None
+    resume_filename: Optional[str] = None  # denormalized from Resume — survives resume deletion
 
     tags: List[str] = Field(default_factory=list)  # e.g. ["react", "healthtech"]
 
@@ -88,9 +83,10 @@ class ApplicationCreate(BaseModel):
     company: str
     stage: Optional[str] = None
     location: Optional[str] = None
+    source_url: Optional[str] = None
     salary_expectation: Optional[str] = None
     initial_contact_date: Optional[datetime] = None
-    resume_ids: List[str] = Field(default_factory=list)
+    resume_id: Optional[str] = None
     tags: List[str] = Field(default_factory=list)
     notes: Optional[str] = None
 
@@ -101,7 +97,7 @@ class ApplicationUpdate(BaseModel):
     location: Optional[str] = None
     salary_expectation: Optional[str] = None
     initial_contact_date: Optional[datetime] = None
-    resume_ids: Optional[List[str]] = None
+    resume_id: Optional[str] = None
     tags: Optional[List[str]] = None
     match_score: Optional[float] = None
     match_explanation: Optional[str] = None

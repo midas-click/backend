@@ -14,6 +14,8 @@ from app.models.application import (
     StageChange,
     TimelineEvent,
 )
+from app.models.job import JobDocument
+from app.models.resume import ResumeDocument
 
 router = APIRouter(tags=["Applications"])
 
@@ -55,9 +57,23 @@ async def get_application(app_id: str):
 # ── CREATE ────────────────────────────────────────
 @router.post("/applications", response_model=ApplicationDocument, status_code=status.HTTP_201_CREATED)
 async def create_application(payload: ApplicationCreate, user_id: str = "default"):
+    create_data = payload.model_dump(exclude_unset=True)
+
+    # Auto-populate source_url from linked Job if not explicitly provided
+    if not create_data.get("source_url") and create_data.get("job_id"):
+        job = await JobDocument.get(create_data["job_id"])
+        if job and job.source_url:
+            create_data["source_url"] = job.source_url
+
+    # Auto-populate resume_filename from linked Resume if not explicitly provided
+    if not create_data.get("resume_filename") and create_data.get("resume_id"):
+        resume = await ResumeDocument.get(create_data["resume_id"])
+        if resume:
+            create_data["resume_filename"] = resume.original_filename
+
     app = ApplicationDocument(
         user_id=user_id,
-        **payload.model_dump(exclude_unset=True),
+        **create_data,
         timeline=[TimelineEvent(event="Applied", detail="Application created")],
     )
     return await app.insert()
@@ -73,6 +89,12 @@ async def update_application(app_id: str, payload: ApplicationUpdate):
     update_data = payload.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(app, field, value)
+
+    # Auto-populate resume_filename if resume_id changed
+    if "resume_id" in update_data:
+        resume = await ResumeDocument.get(app.resume_id) if app.resume_id else None
+        app.resume_filename = resume.original_filename if resume else None
+
     app.updated_at = datetime.utcnow()
     return await app.save()
 

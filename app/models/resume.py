@@ -25,14 +25,8 @@ class ResumeDocument(Document, MidasDocument):
     raw_text: Optional[str] = None          # full extracted text
     sections: List[ResumeSection] = Field(default_factory=list)
 
-    # Performance tracking
-    total_applications: int = 0
-    interview_count: int = 0
-    offer_count: int = 0
-
     tags: List[str] = Field(default_factory=list)
 
-    version: int = 1
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Settings:

@@ -71,10 +71,9 @@ async def get_resume_performance(user_id: str = "default") -> list[Dict[str, Any
 
     # Count applications linked to each resume
     pipeline = [
-        {"$match": {"resume_ids": {"$in": resume_ids}}},
-        {"$unwind": "$resume_ids"},
+        {"$match": {"resume_id": {"$in": resume_ids}}},
         {"$group": {
-            "_id": "$resume_ids",
+            "_id": "$resume_id",
             "applications": {"$sum": 1},
             "interviews": {
                 "$sum": {
@@ -99,7 +98,6 @@ async def get_resume_performance(user_id: str = "default") -> list[Dict[str, Any
         {
             "id": str(r.id),
             "filename": r.original_filename,
-            "version": r.version,
             "applications": stats_map.get(str(r.id), {}).get("applications", 0),
             "interviews": stats_map.get(str(r.id), {}).get("interviews", 0),
             "offers": stats_map.get(str(r.id), {}).get("offers", 0),
