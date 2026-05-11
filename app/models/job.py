@@ -32,6 +32,7 @@ class JobDocument(Document, MidasDocument):
         name = "jobs"
         indexes = [
             "user_id",
+            "team_id",
             "company",
         ]
 
