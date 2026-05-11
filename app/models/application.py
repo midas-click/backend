@@ -38,7 +38,9 @@ class TimelineEvent(BaseModel):
 class ApplicationDocument(Document, MidasDocument):
     """Stores a single job application tracked through the pipeline."""
 
-    user_id: str = Field(default="default")  # placeholder — will be JWT subject later
+    user_id: str = Field(default="default")  # Clerk user ID (sub claim)
+    team_id: str = Field(default="default")  # Clerk organization ID (org_id claim)
+    profile_id: Optional[str] = None         # active profile ID
     job_id: Optional[str] = None  # links to source Job
     job_title: str
     company: str

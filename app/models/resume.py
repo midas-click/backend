@@ -17,7 +17,9 @@ class ResumeSection(BaseModel):
 class ResumeDocument(Document, MidasDocument):
     """Each uploaded or tailored resume version."""
 
-    user_id: str = Field(default="default")
+    user_id: str = Field(default="default")       # Clerk user ID (sub claim)
+    team_id: str = Field(default="default")       # Clerk organization ID (org_id claim)
+    profile_id: Optional[str] = None              # active profile ID
     original_filename: str
     s3_key: str
     s3_url: Optional[str] = None
@@ -33,4 +35,7 @@ class ResumeDocument(Document, MidasDocument):
         name = "resumes"
         indexes = [
             "user_id",
+            "team_id",
+            "profile_id",
+            ("team_id", "profile_id"),
         ]

@@ -5,9 +5,10 @@ import uuid
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
 
+from app.auth.dependencies import get_auth_context
 from app.models.application import ApplicationDocument
 from app.models.resume import ResumeDocument
 from app.services.resume_parser import parse_resume_bytes
@@ -22,20 +23,20 @@ MAX_UPLOAD_BYTES = 5 * 1024 * 1024  # 5 MB
 
 # ── PRE-SIGNED UPLOAD URL ─────────────────────────
 @router.post("/resumes/upload-url")
-async def get_upload_url(filename: str, content_type: str = "application/pdf"):
+async def get_upload_url(filename: str, content_type: str = "application/pdf", ctx: dict = Depends(get_auth_context)):
     """Get a pre-signed S3 URL for client-side direct upload."""
     ext = filename.rsplit(".", 1)[-1].lower()
     if ext not in ("pdf", "docx", "doc", "txt"):
         raise HTTPException(status_code=400, detail="Unsupported file type")
 
-    key = f"resumes/{uuid.uuid4().hex}/{filename}"
+    key = f"resumes/{ctx['org_id']}/{uuid.uuid4().hex}/{filename}"
     url = generate_presigned_upload_url(key, content_type)
     return {"upload_url": url, "s3_key": key}
 
 
 # ── SERVER-SIDE UPLOAD (simpler) ──────────────────
 @router.post("/resumes/upload", status_code=status.HTTP_201_CREATED)
-async def upload_resume(file: UploadFile = File(...), user_id: str = "default"):
+async def upload_resume(file: UploadFile = File(...), ctx: dict = Depends(get_auth_context)):
     """Upload and parse a resume file directly through the server."""
     ext = (file.filename or "unknown.pdf").rsplit(".", 1)[-1].lower()
     if ext not in ("pdf", "docx", "doc", "txt"):
@@ -49,8 +50,8 @@ async def upload_resume(file: UploadFile = File(...), user_id: str = "default"):
     raw_text, sections = await parse_resume_bytes(file.filename or "unknown", content)
     raw_text_trim = raw_text[:50000]  # cap stored text
 
-    # Store in S3
-    s3_key = f"resumes/{uuid.uuid4().hex}/{file.filename}"
+    # Store in S3 (namespaced by org)
+    s3_key = f"resumes/{ctx['org_id']}/{uuid.uuid4().hex}/{file.filename}"
     s3_url = None
     try:
         s3_url = await upload_to_s3(s3_key, content, file.content_type or "application/pdf")
@@ -58,7 +59,9 @@ async def upload_resume(file: UploadFile = File(...), user_id: str = "default"):
         logger.warning("S3 upload skipped: %s", e)
 
     resume = ResumeDocument(
-        user_id=user_id,
+        user_id=ctx["user_id"],
+        team_id=ctx["org_id"],
+        profile_id=ctx["profile_id"],
         original_filename=file.filename or "unknown",
         s3_key=s3_key,
         s3_url=s3_url,
@@ -71,8 +74,12 @@ async def upload_resume(file: UploadFile = File(...), user_id: str = "default"):
 
 # ── LIST ──────────────────────────────────────────
 @router.get("/resumes")
-async def list_resumes(user_id: str = "default"):
-    resumes = await ResumeDocument.find({"user_id": user_id}).sort("-created_at").to_list()
+async def list_resumes(ctx: dict = Depends(get_auth_context)):
+    resume_filter = {"team_id": ctx["org_id"]}
+    if ctx["profile_id"]:
+        resume_filter["profile_id"] = ctx["profile_id"]
+
+    resumes = await ResumeDocument.find(resume_filter).sort("-created_at").to_list()
     if not resumes:
         return []
 
@@ -116,9 +123,13 @@ async def list_resumes(user_id: str = "default"):
 
 # ── GET ───────────────────────────────────────────
 @router.get("/resumes/{resume_id}")
-async def get_resume(resume_id: str):
+async def get_resume(resume_id: str, ctx: dict = Depends(get_auth_context)):
     resume = await ResumeDocument.get(resume_id)
     if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found")
+    if resume.team_id != ctx["org_id"]:
+        raise HTTPException(status_code=404, detail="Resume not found")
+    if ctx["profile_id"] and resume.profile_id != ctx["profile_id"]:
         raise HTTPException(status_code=404, detail="Resume not found")
 
     # Compute live stats
@@ -158,9 +169,13 @@ class ResumeUpdate(BaseModel):
 
 
 @router.patch("/resumes/{resume_id}", response_model=ResumeDocument)
-async def update_resume(resume_id: str, payload: ResumeUpdate):
+async def update_resume(resume_id: str, payload: ResumeUpdate, ctx: dict = Depends(get_auth_context)):
     resume = await ResumeDocument.get(resume_id)
     if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found")
+    if resume.team_id != ctx["org_id"]:
+        raise HTTPException(status_code=404, detail="Resume not found")
+    if ctx["profile_id"] and resume.profile_id != ctx["profile_id"]:
         raise HTTPException(status_code=404, detail="Resume not found")
     if payload.tags is not None:
         resume.tags = payload.tags
@@ -169,9 +184,12 @@ async def update_resume(resume_id: str, payload: ResumeUpdate):
 
 # ── DELETE ────────────────────────────────────────
 @router.delete("/resumes/{resume_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_resume(resume_id: str):
+async def delete_resume(resume_id: str, ctx: dict = Depends(get_auth_context)):
     resume = await ResumeDocument.get(resume_id)
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")
+    if resume.team_id != ctx["org_id"]:
+        raise HTTPException(status_code=404, detail="Resume not found")
+    if ctx["profile_id"] and resume.profile_id != ctx["profile_id"]:
+        raise HTTPException(status_code=404, detail="Resume not found")
     await resume.delete()
-

@@ -40,10 +40,11 @@ class Settings(BaseSettings):
     AWS_REGION: str = "us-east-1"
     S3_BUCKET_NAME: str = "midas-click-resumes"
 
-    # ── JWT ──────────────────────────────────
-    JWT_SECRET_KEY: str = "dev-secret-change-me"
-    JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    # ── Clerk Auth ────────────────────────────
+    CLERK_SECRET_KEY: str = ""
+    CLERK_PUBLISHABLE_KEY: str = ""
+    CLERK_JWKS_URL: str = ""
+    CLERK_ISSUER: str = ""
 
     # ── LLM ──────────────────────────────────
     LLM_API_KEY: str = ""

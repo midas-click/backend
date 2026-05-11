@@ -7,6 +7,7 @@ from app.config import settings
 from app.models.application import ApplicationDocument
 from app.models.resume import ResumeDocument
 from app.models.job import JobDocument
+from app.models.profile import ProfileDocument
 
 _client: AsyncIOMotorClient | None = None
 _db: AsyncIOMotorDatabase | None = None
@@ -23,6 +24,7 @@ async def connect_to_mongo() -> None:
             ApplicationDocument,
             ResumeDocument,
             JobDocument,
+            ProfileDocument,
         ],
     )
 

@@ -1,15 +1,28 @@
 """Analytics service — MongoDB aggregation pipelines for dashboard insights."""
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from app.models.application import ApplicationDocument
 from app.models.resume import ResumeDocument
 
 
-async def get_overview_metrics(user_id: str = "default") -> Dict[str, Any]:
+def _scope_filter(team_id: str, profile_id: Optional[str]) -> dict:
+    """Build a base match filter for the given scope."""
+    f: dict = {"team_id": team_id}
+    if profile_id:
+        f["profile_id"] = profile_id
+    return f
+
+
+async def get_overview_metrics(
+    team_id: str,
+    profile_id: Optional[str] = None,
+) -> Dict[str, Any]:
     """Return high-level KPIs: totals, conversion rates, stage distribution."""
+    base_filter = _scope_filter(team_id, profile_id)
+
     pipeline = [
-        {"$match": {"user_id": user_id}},
+        {"$match": base_filter},
         {
             "$facet": {
                 "by_stage": [
@@ -35,7 +48,6 @@ async def get_overview_metrics(user_id: str = "default") -> Dict[str, Any]:
                     {"$match": {"stage": "rejected"}},
                     {"$count": "count"},
                 ],
-
             },
         },
     ]
@@ -58,11 +70,16 @@ async def get_overview_metrics(user_id: str = "default") -> Dict[str, Any]:
     }
 
 
-async def get_resume_performance(user_id: str = "default") -> list[Dict[str, Any]]:
+async def get_resume_performance(
+    team_id: str,
+    profile_id: Optional[str] = None,
+) -> list[Dict[str, Any]]:
     """Return how each resume version has performed (app count, interview count)."""
-    resumes = await ResumeDocument.find(
-        ResumeDocument.user_id == user_id,
-    ).to_list()
+    resume_filter = {"team_id": team_id}
+    if profile_id:
+        resume_filter["profile_id"] = profile_id
+
+    resumes = await ResumeDocument.find(resume_filter).to_list()
 
     if not resumes:
         return []
@@ -106,10 +123,15 @@ async def get_resume_performance(user_id: str = "default") -> list[Dict[str, Any
     ]
 
 
-async def get_industry_trends(user_id: str = "default") -> list[Dict[str, Any]]:
+async def get_industry_trends(
+    team_id: str,
+    profile_id: Optional[str] = None,
+) -> list[Dict[str, Any]]:
     """Group by tag (industry/tech stack) and show success rates."""
+    base_filter = _scope_filter(team_id, profile_id)
+
     pipeline = [
-        {"$match": {"user_id": user_id}},
+        {"$match": base_filter},
         {"$unwind": "$tags"},
         {"$group": {
             "_id": "$tags",
