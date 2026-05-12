@@ -17,7 +17,7 @@ class ProfileDocument(Document, MidasDocument):
     """
 
     user_id: str                          # Clerk user ID (sub claim)
-    team_id: str                          # Clerk organization ID (org_id claim)
+    org_id: str                          # Clerk organization ID (org_id claim)
     name: str
     email: Optional[str] = None
     headline: Optional[str] = None
@@ -28,8 +28,8 @@ class ProfileDocument(Document, MidasDocument):
         name = "profiles"
         indexes = [
             "user_id",
-            "team_id",
-            ("team_id", "user_id"),
+            "org_id",
+            ("org_id", "user_id"),
         ]
 
 

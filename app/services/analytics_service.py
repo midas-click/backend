@@ -6,20 +6,20 @@ from app.models.application import ApplicationDocument
 from app.models.resume import ResumeDocument
 
 
-def _scope_filter(team_id: str, profile_id: Optional[str]) -> dict:
+def _scope_filter(org_id: str, profile_id: Optional[str]) -> dict:
     """Build a base match filter for the given scope."""
-    f: dict = {"team_id": team_id}
+    f: dict = {"org_id": org_id}
     if profile_id:
         f["profile_id"] = profile_id
     return f
 
 
 async def get_overview_metrics(
-    team_id: str,
+    org_id: str,
     profile_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Return high-level KPIs: totals, conversion rates, stage distribution."""
-    base_filter = _scope_filter(team_id, profile_id)
+    base_filter = _scope_filter(org_id, profile_id)
 
     pipeline = [
         {"$match": base_filter},
@@ -71,11 +71,11 @@ async def get_overview_metrics(
 
 
 async def get_resume_performance(
-    team_id: str,
+    org_id: str,
     profile_id: Optional[str] = None,
 ) -> list[Dict[str, Any]]:
     """Return how each resume version has performed (app count, interview count)."""
-    resume_filter = {"team_id": team_id}
+    resume_filter = {"org_id": org_id}
     if profile_id:
         resume_filter["profile_id"] = profile_id
 
@@ -124,11 +124,11 @@ async def get_resume_performance(
 
 
 async def get_industry_trends(
-    team_id: str,
+    org_id: str,
     profile_id: Optional[str] = None,
 ) -> list[Dict[str, Any]]:
     """Group by tag (industry/tech stack) and show success rates."""
-    base_filter = _scope_filter(team_id, profile_id)
+    base_filter = _scope_filter(org_id, profile_id)
 
     pipeline = [
         {"$match": base_filter},

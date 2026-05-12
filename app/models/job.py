@@ -12,6 +12,7 @@ from app.models.base import MidasDocument
 class JobDocument(Document, MidasDocument):
 
     user_id: str = Field(default="default")       # Clerk user ID (sub claim)
+    org_id: str = Field(default="default")        # Clerk organization ID
 
     title: str
     company: str
@@ -32,7 +33,7 @@ class JobDocument(Document, MidasDocument):
         name = "jobs"
         indexes = [
             "user_id",
-            "team_id",
+            "org_id",
             "company",
         ]
 

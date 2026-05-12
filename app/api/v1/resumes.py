@@ -60,7 +60,7 @@ async def upload_resume(file: UploadFile = File(...), ctx: dict = Depends(get_au
 
     resume = ResumeDocument(
         user_id=ctx["user_id"],
-        team_id=ctx["org_id"],
+        org_id=ctx["org_id"],
         profile_id=ctx["profile_id"],
         original_filename=file.filename or "unknown",
         s3_key=s3_key,
@@ -75,7 +75,7 @@ async def upload_resume(file: UploadFile = File(...), ctx: dict = Depends(get_au
 # ── LIST ──────────────────────────────────────────
 @router.get("/resumes")
 async def list_resumes(ctx: dict = Depends(get_auth_context)):
-    resume_filter = {"team_id": ctx["org_id"]}
+    resume_filter = {"org_id": ctx["org_id"]}
     if ctx["profile_id"]:
         resume_filter["profile_id"] = ctx["profile_id"]
 
@@ -127,7 +127,7 @@ async def get_resume(resume_id: str, ctx: dict = Depends(get_auth_context)):
     resume = await ResumeDocument.get(resume_id)
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")
-    if resume.team_id != ctx["org_id"]:
+    if resume.org_id != ctx["org_id"]:
         raise HTTPException(status_code=404, detail="Resume not found")
     if ctx["profile_id"] and resume.profile_id != ctx["profile_id"]:
         raise HTTPException(status_code=404, detail="Resume not found")
@@ -173,7 +173,7 @@ async def update_resume(resume_id: str, payload: ResumeUpdate, ctx: dict = Depen
     resume = await ResumeDocument.get(resume_id)
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")
-    if resume.team_id != ctx["org_id"]:
+    if resume.org_id != ctx["org_id"]:
         raise HTTPException(status_code=404, detail="Resume not found")
     if ctx["profile_id"] and resume.profile_id != ctx["profile_id"]:
         raise HTTPException(status_code=404, detail="Resume not found")
@@ -188,7 +188,7 @@ async def delete_resume(resume_id: str, ctx: dict = Depends(get_auth_context)):
     resume = await ResumeDocument.get(resume_id)
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")
-    if resume.team_id != ctx["org_id"]:
+    if resume.org_id != ctx["org_id"]:
         raise HTTPException(status_code=404, detail="Resume not found")
     if ctx["profile_id"] and resume.profile_id != ctx["profile_id"]:
         raise HTTPException(status_code=404, detail="Resume not found")

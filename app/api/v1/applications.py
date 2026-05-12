@@ -25,7 +25,7 @@ def _assert_profile(obj: dict | None, ctx: dict):
     """Check that a document belongs to the current org (and profile if set)."""
     if obj is None:
         raise HTTPException(status_code=404, detail="Not found")
-    if obj.get("team_id") != ctx["org_id"]:
+    if obj.get("org_id") != ctx["org_id"]:
         raise HTTPException(status_code=404, detail="Not found")
     if ctx["profile_id"] and obj.get("profile_id") != ctx["profile_id"]:
         raise HTTPException(status_code=404, detail="Not found")
@@ -40,7 +40,7 @@ async def list_applications(
     search: Optional[str] = None,
     ctx: dict = Depends(get_auth_context),
 ):
-    filters: dict = {"team_id": ctx["org_id"]}
+    filters: dict = {"org_id": ctx["org_id"]}
     if ctx["profile_id"]:
         filters["profile_id"] = ctx["profile_id"]
     if stage:
@@ -64,7 +64,7 @@ async def get_application(app_id: str, ctx: dict = Depends(get_auth_context)):
     app = await ApplicationDocument.get(app_id)
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
-    if app.team_id != ctx["org_id"]:
+    if app.org_id != ctx["org_id"]:
         raise HTTPException(status_code=404, detail="Application not found")
     if ctx["profile_id"] and app.profile_id != ctx["profile_id"]:
         raise HTTPException(status_code=404, detail="Application not found")
@@ -81,18 +81,18 @@ async def create_application(payload: ApplicationCreate, ctx: dict = Depends(get
         job = await JobDocument.get(create_data["job_id"])
         if job:
             # Only auto-populate if job belongs to the team
-            if job.team_id == ctx["org_id"] and job.source_url:
+            if job.org_id == ctx["org_id"] and job.source_url:
                 create_data["source_url"] = job.source_url
 
     # Auto-populate resume_filename from linked Resume if not explicitly provided
     if not create_data.get("resume_filename") and create_data.get("resume_id"):
         resume = await ResumeDocument.get(create_data["resume_id"])
-        if resume and resume.team_id == ctx["org_id"]:
+        if resume and resume.org_id == ctx["org_id"]:
             create_data["resume_filename"] = resume.original_filename
 
     app = ApplicationDocument(
         user_id=ctx["user_id"],
-        team_id=ctx["org_id"],
+        org_id=ctx["org_id"],
         profile_id=ctx["profile_id"],
         **create_data,
         timeline=[TimelineEvent(event="Applied", detail="Application created")],
@@ -106,7 +106,7 @@ async def update_application(app_id: str, payload: ApplicationUpdate, ctx: dict 
     app = await ApplicationDocument.get(app_id)
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
-    if app.team_id != ctx["org_id"]:
+    if app.org_id != ctx["org_id"]:
         raise HTTPException(status_code=404, detail="Application not found")
     if ctx["profile_id"] and app.profile_id != ctx["profile_id"]:
         raise HTTPException(status_code=404, detail="Application not found")
@@ -130,7 +130,7 @@ async def delete_application(app_id: str, ctx: dict = Depends(get_auth_context))
     app = await ApplicationDocument.get(app_id)
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
-    if app.team_id != ctx["org_id"]:
+    if app.org_id != ctx["org_id"]:
         raise HTTPException(status_code=404, detail="Application not found")
     if ctx["profile_id"] and app.profile_id != ctx["profile_id"]:
         raise HTTPException(status_code=404, detail="Application not found")
@@ -143,7 +143,7 @@ async def move_stage(app_id: str, payload: StageChange, ctx: dict = Depends(get_
     app = await ApplicationDocument.get(app_id)
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
-    if app.team_id != ctx["org_id"]:
+    if app.org_id != ctx["org_id"]:
         raise HTTPException(status_code=404, detail="Application not found")
     if ctx["profile_id"] and app.profile_id != ctx["profile_id"]:
         raise HTTPException(status_code=404, detail="Application not found")
@@ -164,7 +164,7 @@ async def add_communication(app_id: str, payload: CommunicationCreate, ctx: dict
     app = await ApplicationDocument.get(app_id)
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
-    if app.team_id != ctx["org_id"]:
+    if app.org_id != ctx["org_id"]:
         raise HTTPException(status_code=404, detail="Application not found")
     if ctx["profile_id"] and app.profile_id != ctx["profile_id"]:
         raise HTTPException(status_code=404, detail="Application not found")

@@ -18,7 +18,7 @@ async def list_profiles(ctx: dict = Depends(get_auth_context)):
     return (
         await ProfileDocument.find(
             ProfileDocument.user_id == ctx["user_id"],
-            ProfileDocument.team_id == ctx["org_id"],
+            ProfileDocument.org_id == ctx["org_id"],
         )
         .sort("-created_at")
         .to_list()
@@ -31,7 +31,7 @@ async def get_profile(profile_id: str, ctx: dict = Depends(get_auth_context)):
     profile = await ProfileDocument.get(profile_id)
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
-    if profile.team_id != ctx["org_id"]:
+    if profile.org_id != ctx["org_id"]:
         raise HTTPException(status_code=403, detail="Profile does not belong to this organization")
     return profile
 
@@ -48,7 +48,7 @@ async def create_profile(
 ):
     profile = ProfileDocument(
         user_id=ctx["user_id"],
-        team_id=ctx["org_id"],
+        org_id=ctx["org_id"],
         name=payload.name,
         email=payload.email,
         headline=payload.headline,
@@ -66,7 +66,7 @@ async def update_profile(
     profile = await ProfileDocument.get(profile_id)
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
-    if profile.team_id != ctx["org_id"]:
+    if profile.org_id != ctx["org_id"]:
         raise HTTPException(status_code=403, detail="Profile does not belong to this organization")
     if profile.user_id != ctx["user_id"] and ctx["org_role"] not in ("org:admin", "org:manager"):
         raise HTTPException(status_code=403, detail="Cannot edit another user's profile")
@@ -82,7 +82,7 @@ async def delete_profile(profile_id: str, ctx: dict = Depends(get_auth_context))
     profile = await ProfileDocument.get(profile_id)
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
-    if profile.team_id != ctx["org_id"]:
+    if profile.org_id != ctx["org_id"]:
         raise HTTPException(status_code=403, detail="Profile does not belong to this organization")
     if profile.user_id != ctx["user_id"] and ctx["org_role"] not in ("org:admin", "org:manager"):
         raise HTTPException(status_code=403, detail="Cannot delete another user's profile")

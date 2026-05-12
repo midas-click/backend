@@ -6,7 +6,8 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.auth.dependencies import get_auth_context, get_current_user_id
+from app.auth.dependencies import get_auth_context, get_current_profile_id, get_current_user_id
+from app.models.application import ApplicationDocument
 from app.models.job import JobAnalyzeRequest, JobCreate, JobDocument, JobUpdate
 from app.services.llm_service import extract_job_fields
 
@@ -22,7 +23,7 @@ def _can_manage(job: JobDocument, user_id: str, org_id: str, org_role: str) -> b
     """Check if the current user can edit/delete this job."""
     if job.user_id == user_id:
         return True
-    if org_role in _MANAGER_ROLES and job.team_id == org_id:
+    if org_role in _MANAGER_ROLES and job.org_id == org_id:
         return True
     return False
 
@@ -32,8 +33,13 @@ def _can_manage(job: JobDocument, user_id: str, org_id: str, org_role: str) -> b
 async def list_jobs(
     tag: Optional[str] = None,
     search: Optional[str] = None,
+    profile_id: Optional[str] = Depends(get_current_profile_id),
 ):
-    """List all jobs — publicly accessible, no auth required."""
+    """List jobs — publicly accessible, no auth required.
+
+    When a profile is active (X-Profile-Id header), jobs that already have
+    an application for that profile are excluded from the list.
+    """
     filters: dict = {}
     if tag:
         filters["tags"] = {"$regex": tag, "$options": "i"}
@@ -43,7 +49,16 @@ async def list_jobs(
             {"company": {"$regex": search, "$options": "i"}},
         ]
 
-    return await JobDocument.find(filters).sort("-created_at").to_list()
+    jobs = await JobDocument.find(filters).sort("-created_at").to_list()
+
+    if profile_id:
+        applied = await ApplicationDocument.find(
+            {"profile_id": profile_id}
+        ).to_list()
+        applied_job_ids = {app.job_id for app in applied if app.job_id}
+        jobs = [j for j in jobs if str(j.id) not in applied_job_ids]
+
+    return jobs
 
 
 # ── GET (public) ──────────────────────────────────
@@ -74,7 +89,7 @@ async def analyze_and_create_job(
 
     job = JobDocument(
         user_id=ctx["user_id"],
-        team_id=ctx["org_id"],
+        org_id=ctx["org_id"],
         title=extracted.get("title") or "Untitled",
         company=extracted.get("company") or "Unknown",
         description=payload.raw_text.strip(),
@@ -96,7 +111,7 @@ async def create_job(
     """Create a job — requires authentication."""
     job = JobDocument(
         user_id=ctx["user_id"],
-        team_id=ctx["org_id"],
+        org_id=ctx["org_id"],
         **payload.model_dump(),
     )
     return await job.insert()
