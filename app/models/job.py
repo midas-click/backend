@@ -22,7 +22,7 @@ class JobDocument(Document, MidasDocument):
     salary_range: Optional[str] = None
 
     source_url: Optional[str] = None
-    source_name: str = "manual"  # manual | linkedin | indeed | greenhouse | ...
+    org_name: str = "Unknown"     # denormalized org name for display
 
 
     tags: List[str] = Field(default_factory=list)

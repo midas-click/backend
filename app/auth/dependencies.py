@@ -99,12 +99,24 @@ async def get_current_profile_id(
     return x_profile_id
 
 
+async def get_current_org_name(
+    user: dict = Depends(get_current_user),
+) -> str:
+    """Extract the organization name from Clerk JWT claims."""
+    org_name = user.get("org_name")  # custom claim (Clerk Dashboard → JWT Templates)
+    if org_name:
+        return org_name
+    slg = (user.get("o") or {}).get("slg")  # built-in org slug
+    return slg or "Unknown"
+
+
 # ── Composite context ──
 
 async def get_auth_context(
     user_id: str = Depends(get_current_user_id),
     org_id: str = Depends(get_current_org),
     org_role: str = Depends(get_current_org_role),
+    org_name: str = Depends(get_current_org_name),
     profile_id: Optional[str] = Depends(get_current_profile_id),
 ) -> Dict:
     """Full auth context packed into a dict for endpoint handlers.
@@ -116,6 +128,7 @@ async def get_auth_context(
             "user_id":    str,         # Clerk user ID (sub claim)
             "org_id":     str,         # active organization ID
             "org_role":   str,         # e.g. "org:admin", "org:member"
+            "org_name":   str,         # organization slug / name
             "profile_id": str | None,  # from X-Profile-Id header
         }
     """
@@ -123,5 +136,6 @@ async def get_auth_context(
         "user_id": user_id,
         "org_id": org_id,
         "org_role": org_role,
+        "org_name": org_name,
         "profile_id": profile_id,
     }

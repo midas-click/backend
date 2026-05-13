@@ -96,7 +96,7 @@ async def analyze_and_create_job(
         location=extracted.get("location"),
         remote=bool(extracted.get("remote", False)),
         salary_range=extracted.get("salary_range"),
-        source_name="ai-analyzed",
+        org_name=ctx["org_name"],
         source_url=payload.source_url or None,
         tags=extracted.get("tags", []),
     )
@@ -112,6 +112,7 @@ async def create_job(
     job = JobDocument(
         user_id=ctx["user_id"],
         org_id=ctx["org_id"],
+        org_name=ctx["org_name"],
         **payload.model_dump(),
     )
     return await job.insert()
