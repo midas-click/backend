@@ -1,8 +1,10 @@
 """Analytics service — MongoDB aggregation pipelines for dashboard insights."""
 
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from app.models.application import ApplicationDocument
+from app.models.job import JobDocument
 from app.models.resume import ResumeDocument
 
 
@@ -21,8 +23,13 @@ async def get_overview_metrics(
     """Return high-level KPIs: totals, conversion rates, stage distribution."""
     base_filter = _scope_filter(org_id, profile_id)
 
+    # Compute date boundaries for this-month filter
+    now = datetime.utcnow()
+    since_24h = now - timedelta(hours=24)
+    since_month = datetime(now.year, now.month, 1)
+
     pipeline = [
-        {"$match": base_filter},
+        {"$match": {**base_filter, "created_at": {"$gte": since_month}}},
         {
             "$facet": {
                 "by_stage": [
@@ -61,12 +68,28 @@ async def get_overview_metrics(
     interview_count = facet["with_interview"][0]["count"] if facet["with_interview"] else 0
     offer_count = facet["offers"][0]["count"] if facet["offers"] else 0
     rejection_count = facet["rejections"][0]["count"] if facet["rejections"] else 0
+
+    # Count jobs added in the last 24 hours (all users)
+    jobs_last_24h = await JobDocument.find({"created_at": {"$gte": since_24h}}).count()
+
+    # Count jobs added this month (all users)
+    jobs_this_month = await JobDocument.find({"created_at": {"$gte": since_month}}).count()
+
+    # Count applications created in the last 24 hours (scoped to org+profile)
+    apps_last_24h = await ApplicationDocument.find(
+        {**base_filter, "created_at": {"$gte": since_24h}}
+    ).count()
+
     return {
         "total_applications": total,
         "interview_rate": round(interview_count / total * 100, 1) if total else 0,
         "offer_rate": round(offer_count / interview_count * 100, 1) if interview_count else 0,
         "rejection_rate": round(rejection_count / total * 100, 1) if total else 0,
         "by_stage": {item["_id"]: item["count"] for item in facet["by_stage"]},
+        "jobs_last_24h": jobs_last_24h,
+        "jobs_this_month": jobs_this_month,
+        "applications_last_24h": apps_last_24h,
+        "applications_this_month": total,
     }
 
 
@@ -173,4 +196,8 @@ def _empty_overview() -> Dict[str, Any]:
         "offer_rate": 0,
         "rejection_rate": 0,
         "by_stage": {},
+        "jobs_last_24h": 0,
+        "jobs_this_month": 0,
+        "applications_last_24h": 0,
+        "applications_this_month": 0,
     }
