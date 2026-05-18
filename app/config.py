@@ -28,11 +28,8 @@ class Settings(BaseSettings):
         return _parse_origins(self.CORS_ORIGINS)
 
     # ── MongoDB ──────────────────────────────
-    MONGODB_URI: str = "mongodb://admin:midasdev@localhost:27017/midas_click?authSource=admin"
-    MONGO_DB_NAME: str = "midas_click"
-
-    # ── Redis ────────────────────────────────
-    REDIS_URL: str = "redis://localhost:6379/0"
+    MONGODB_URI: str = "mongodb+srv://db_user:db_pass@db_name.o3bprl5.mongodb.net/?appName=midas"
+    MONGO_DB_NAME: str = ""
 
     # ── AWS S3 ───────────────────────────────
     AWS_ACCESS_KEY_ID: str = ""
