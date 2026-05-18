@@ -1,10 +1,8 @@
 """Clerk JWT verification via JWKS endpoint."""
 
 import asyncio
-import json
 import logging
 from datetime import datetime, timezone
-from functools import lru_cache
 from typing import Any, Dict, Optional
 
 import httpx

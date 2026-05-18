@@ -6,7 +6,6 @@ from fastapi import Depends, Header, HTTPException, status
 
 from .jwt_verifier import verify_clerk_token
 
-
 # ── Bearer token extraction & verification ──
 
 async def _extract_token(authorization: str = Header(...)) -> str:

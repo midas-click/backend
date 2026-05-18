@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.auth.dependencies import get_auth_context
 from app.models.application import (
@@ -19,16 +19,6 @@ from app.models.job import JobDocument
 from app.models.resume import ResumeDocument
 
 router = APIRouter(tags=["Applications"])
-
-
-def _assert_profile(obj: dict | None, ctx: dict):
-    """Check that a document belongs to the current org (and profile if set)."""
-    if obj is None:
-        raise HTTPException(status_code=404, detail="Not found")
-    if obj.get("org_id") != ctx["org_id"]:
-        raise HTTPException(status_code=404, detail="Not found")
-    if ctx["profile_id"] and obj.get("profile_id") != ctx["profile_id"]:
-        raise HTTPException(status_code=404, detail="Not found")
 
 
 # ── LIST ──────────────────────────────────────────

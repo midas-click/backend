@@ -2,7 +2,6 @@
 
 import logging
 import uuid
-from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
@@ -12,7 +11,7 @@ from app.auth.dependencies import get_auth_context
 from app.models.application import ApplicationDocument
 from app.models.resume import ResumeDocument
 from app.services.resume_parser import parse_resume_bytes
-from app.services.s3_service import generate_presigned_upload_url, generate_presigned_download_url, upload_to_s3
+from app.services.s3_service import generate_presigned_upload_url, upload_to_s3
 
 logger = logging.getLogger(__name__)
 

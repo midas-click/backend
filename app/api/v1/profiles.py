@@ -1,7 +1,6 @@
 """Profiles API — CRUD for user-created sub-accounts within a team."""
 
-from datetime import datetime
-from typing import List, Optional
+from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 

@@ -1,13 +1,13 @@
 """MongoDB connection management (Motor + Beanie ODM)."""
 
-from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from beanie import init_beanie
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
 from app.config import settings
 from app.models.application import ApplicationDocument
-from app.models.resume import ResumeDocument
 from app.models.job import JobDocument
 from app.models.profile import ProfileDocument
+from app.models.resume import ResumeDocument
 
 _client: AsyncIOMotorClient | None = None
 _db: AsyncIOMotorDatabase | None = None
@@ -33,8 +33,3 @@ async def close_mongo_connection() -> None:
     global _client
     if _client:
         _client.close()
-
-
-def get_db() -> AsyncIOMotorDatabase:
-    assert _db is not None, "Database not initialised"
-    return _db

@@ -1,7 +1,7 @@
 """Analytics service — MongoDB aggregation pipelines for dashboard insights."""
 
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from app.models.application import ApplicationDocument
 from app.models.job import JobDocument

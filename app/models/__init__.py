@@ -1,7 +1,7 @@
 from .application import ApplicationDocument
 from .job import JobDocument
-from .resume import ResumeDocument
 from .profile import ProfileDocument
+from .resume import ResumeDocument
 
 __all__ = [
     "ApplicationDocument",

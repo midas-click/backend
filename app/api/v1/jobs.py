@@ -1,12 +1,11 @@
 """Jobs API — public listing, authenticated creation/management with role-based access."""
 
+import logging
 from typing import List, Optional
 
-import logging
+from fastapi import APIRouter, Depends, HTTPException, status
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-
-from app.auth.dependencies import get_auth_context, get_current_profile_id, get_current_user_id
+from app.auth.dependencies import get_auth_context, get_current_profile_id
 from app.models.application import ApplicationDocument
 from app.models.job import JobAnalyzeRequest, JobCreate, JobDocument, JobUpdate
 from app.services.llm_service import extract_job_fields

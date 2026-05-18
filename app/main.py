@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.db.mongodb import connect_to_mongo, close_mongo_connection
+from app.db.mongodb import close_mongo_connection, connect_to_mongo
 
 
 @asynccontextmanager
@@ -34,11 +34,11 @@ def create_app() -> FastAPI:
     )
 
     # ── Register routers ──────────────────────────
-    from app.api.v1.applications import router as apps_router
-    from app.api.v1.resumes import router as resumes_router
-    from app.api.v1.jobs import router as jobs_router
     from app.api.v1.analytics import router as analytics_router
+    from app.api.v1.applications import router as apps_router
+    from app.api.v1.jobs import router as jobs_router
     from app.api.v1.profiles import router as profiles_router
+    from app.api.v1.resumes import router as resumes_router
 
     app.include_router(apps_router, prefix="/api/v1")
     app.include_router(resumes_router, prefix="/api/v1")

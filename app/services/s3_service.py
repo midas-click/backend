@@ -1,13 +1,11 @@
 """S3 service — pre-signed upload/download URLs."""
 
-from datetime import timedelta
 from typing import Optional
 
 import boto3
 from botocore.config import Config
 
 from app.config import settings
-
 
 _s3_client: Optional["boto3.client"] = None
 

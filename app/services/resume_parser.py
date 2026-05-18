@@ -5,18 +5,6 @@ from typing import List
 
 from app.models.resume import ResumeSection
 
-# Common section heading patterns (case-insensitive)
-_SECTION_HEADINGS = [
-    r"(?i)^\s*(summary|objective|profile)\s*$",
-    r"(?i)^\s*(experience|work\s*experience|employment|professional\s*experience)\s*$",
-    r"(?i)^\s*(education|academic\s*background)\s*$",
-    r"(?i)^\s*(skills|technical\s*skills|core\s*competencies|technologies)\s*$",
-    r"(?i)^\s*(projects|personal\s*projects|portfolio)\s*$",
-    r"(?i)^\s*(certifications|certificates)\s*$",
-    r"(?i)^\s*(languages)\s*$",
-    r"(?i)^\s*(awards|honors|achievements)\s*$",
-]
-
 
 async def parse_resume_bytes(filename: str, content: bytes) -> tuple[str, List[ResumeSection]]:
     """Parse resume file bytes and return raw text + structured sections."""
@@ -60,8 +48,6 @@ def _parse_docx(content: bytes) -> tuple[str, List[ResumeSection]]:
 
 def _segment_sections(text: str) -> List[ResumeSection]:
     """Naive section splitter — looks for ALL_CAPS or Title-Case headings."""
-    import re
-
     lines = text.split("\n")
     sections: List[ResumeSection] = []
     current_heading = "Header"
