@@ -1,14 +1,11 @@
 """Applications API — full CRUD + kanban stage management + communication logs."""
 
-import base64
-import json
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 
-from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel
 
+from app.api.pagination import CursorPage, add_cursor_filter, build_cursor_page
 from app.auth.dependencies import get_auth_context
 from app.models.application import (
     ApplicationCreate,
@@ -25,26 +22,7 @@ from app.models.resume import ResumeDocument
 router = APIRouter(tags=["Applications"])
 
 
-class ApplicationListResponse(BaseModel):
-    items: List[ApplicationDocument]
-    next_cursor: Optional[str] = None
-    has_more: bool = False
-
-
-def _encode_cursor(app: ApplicationDocument) -> str:
-    payload = {
-        "updated_at": app.updated_at.isoformat(),
-        "id": str(app.id),
-    }
-    return base64.urlsafe_b64encode(json.dumps(payload).encode()).decode()
-
-
-def _decode_cursor(cursor: str) -> tuple[datetime, ObjectId]:
-    try:
-        payload = json.loads(base64.urlsafe_b64decode(cursor.encode()).decode())
-        return datetime.fromisoformat(payload["updated_at"]), ObjectId(payload["id"])
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail="Invalid cursor") from exc
+ApplicationListResponse = CursorPage[ApplicationDocument]
 
 
 # ── LIST ──────────────────────────────────────────
@@ -74,19 +52,10 @@ async def list_applications(
             {"location": {"$regex": search, "$options": "i"}},
             {"tags": {"$regex": search, "$options": "i"}},
         ]
-    if cursor:
-        cursor_updated_at, cursor_id = _decode_cursor(cursor)
-        filters["$and"] = [
-            {
-                "$or": [
-                    {"updated_at": {"$lt": cursor_updated_at}},
-                    {
-                        "updated_at": cursor_updated_at,
-                        "_id": {"$lt": cursor_id},
-                    },
-                ],
-            },
-        ]
+    try:
+        add_cursor_filter(filters, cursor, "updated_at")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid cursor") from exc
 
     items = (
         await ApplicationDocument.find(filters)
@@ -94,13 +63,7 @@ async def list_applications(
         .limit(limit + 1)
         .to_list()
     )
-    has_more = len(items) > limit
-    page_items = items[:limit]
-    return ApplicationListResponse(
-        items=page_items,
-        next_cursor=_encode_cursor(page_items[-1]) if has_more and page_items else None,
-        has_more=has_more,
-    )
+    return build_cursor_page(items, limit, "updated_at")
 
 
 # ── GET ───────────────────────────────────────────

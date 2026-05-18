@@ -35,6 +35,8 @@ class JobDocument(Document, MidasDocument):
             "user_id",
             "org_id",
             "company",
+            "created_at",
+            ("created_at", "company"),
         ]
 
 

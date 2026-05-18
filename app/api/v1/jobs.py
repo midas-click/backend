@@ -1,10 +1,12 @@
 """Jobs API — public listing, authenticated creation/management with role-based access."""
 
 import logging
-from typing import List, Optional
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from bson import ObjectId
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from app.api.pagination import CursorPage, add_cursor_filter, build_cursor_page
 from app.auth.dependencies import get_auth_context, get_current_profile_id
 from app.models.application import ApplicationDocument
 from app.models.job import JobAnalyzeRequest, JobCreate, JobDocument, JobUpdate
@@ -18,6 +20,9 @@ router = APIRouter(tags=["Jobs"])
 _MANAGER_ROLES = {"org:admin"}
 
 
+JobListResponse = CursorPage[JobDocument]
+
+
 def _can_manage(job: JobDocument, user_id: str, org_id: str, org_role: str) -> bool:
     """Check if the current user can edit/delete this job."""
     if job.user_id == user_id:
@@ -28,10 +33,12 @@ def _can_manage(job: JobDocument, user_id: str, org_id: str, org_role: str) -> b
 
 
 # ── LIST (public) ────────────────────────────────
-@router.get("/jobs", response_model=List[JobDocument])
+@router.get("/jobs", response_model=JobListResponse)
 async def list_jobs(
     tag: Optional[str] = None,
     search: Optional[str] = None,
+    cursor: Optional[str] = None,
+    limit: int = Query(default=25, ge=1, le=100),
     profile_id: Optional[str] = Depends(get_current_profile_id),
 ):
     """List jobs — publicly accessible, no auth required.
@@ -46,18 +53,34 @@ async def list_jobs(
         filters["$or"] = [
             {"title": {"$regex": search, "$options": "i"}},
             {"company": {"$regex": search, "$options": "i"}},
+            {"location": {"$regex": search, "$options": "i"}},
+            {"tags": {"$regex": search, "$options": "i"}},
         ]
-
-    jobs = await JobDocument.find(filters).sort("-created_at").to_list()
 
     if profile_id:
         applied = await ApplicationDocument.find(
             {"profile_id": profile_id}
         ).to_list()
-        applied_job_ids = {app.job_id for app in applied if app.job_id}
-        jobs = [j for j in jobs if str(j.id) not in applied_job_ids]
+        applied_job_ids = [
+            ObjectId(app.job_id)
+            for app in applied
+            if app.job_id and ObjectId.is_valid(app.job_id)
+        ]
+        if applied_job_ids:
+            filters["_id"] = {"$nin": applied_job_ids}
 
-    return jobs
+    try:
+        add_cursor_filter(filters, cursor, "created_at")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid cursor") from exc
+
+    jobs = (
+        await JobDocument.find(filters)
+        .sort("-created_at", "-_id")
+        .limit(limit + 1)
+        .to_list()
+    )
+    return build_cursor_page(jobs, limit, "created_at")
 
 
 # ── GET (public) ──────────────────────────────────
