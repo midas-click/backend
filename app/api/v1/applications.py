@@ -54,6 +54,7 @@ async def list_applications(
             {"job_title": {"$regex": search, "$options": "i"}},
             {"company": {"$regex": search, "$options": "i"}},
             {"location": {"$regex": search, "$options": "i"}},
+            {"tags": {"$regex": search, "$options": "i"}},
         ]
     return await ApplicationDocument.find(filters).sort("-updated_at").to_list()
 
