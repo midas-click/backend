@@ -5,6 +5,7 @@ from typing import Optional
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pymongo.errors import DuplicateKeyError
 
 from app.api.pagination import CursorPage, add_cursor_filter, build_cursor_page
 from app.auth.dependencies import (
@@ -34,6 +35,26 @@ def _can_manage(job: JobDocument, user_id: str, org_id: str, org_role: str) -> b
     if org_role in _MANAGER_ROLES and job.org_id == org_id:
         return True
     return False
+
+
+def _normalize_source_url(source_url: str | None) -> str | None:
+    url = (source_url or "").strip()
+    return url.rstrip("/") if url else None
+
+
+async def _ensure_source_url_available(source_url: str | None, exclude_job_id: str | None = None) -> str:
+    normalized_url = _normalize_source_url(source_url)
+    if not normalized_url:
+        raise HTTPException(status_code=400, detail="Job posting URL is required")
+
+    existing = await JobDocument.find_one(JobDocument.source_url == normalized_url)
+    if existing and str(existing.id) != exclude_job_id:
+        raise HTTPException(status_code=409, detail="A job with this posting URL already exists")
+    return normalized_url
+
+
+def _duplicate_source_url_error() -> HTTPException:
+    return HTTPException(status_code=409, detail="A job with this posting URL already exists")
 
 
 # ── LIST (public) ────────────────────────────────
@@ -115,6 +136,7 @@ async def analyze_and_create_job(
     """Paste a raw job description, let LLM extract structured fields, and save."""
     if not payload.raw_text.strip():
         raise HTTPException(status_code=400, detail="Job description is required")
+    source_url = await _ensure_source_url_available(payload.source_url)
 
     try:
         extracted = await extract_job_fields(payload.raw_text.strip())
@@ -132,10 +154,13 @@ async def analyze_and_create_job(
         remote=bool(extracted.get("remote", False)),
         salary_range=extracted.get("salary_range"),
         org_name=ctx["org_name"],
-        source_url=payload.source_url or None,
+        source_url=source_url,
         tags=extracted.get("tags", []),
     )
-    return await job.insert()
+    try:
+        return await job.insert()
+    except DuplicateKeyError as exc:
+        raise _duplicate_source_url_error() from exc
 
 
 @router.post("/jobs", response_model=JobDocument, status_code=status.HTTP_201_CREATED)
@@ -144,13 +169,19 @@ async def create_job(
     ctx: dict = Depends(get_auth_context),
 ):
     """Create a job — requires authentication."""
+    create_data = payload.model_dump()
+    if create_data.get("source_url"):
+        create_data["source_url"] = await _ensure_source_url_available(create_data["source_url"])
     job = JobDocument(
         user_id=ctx["user_id"],
         org_id=ctx["org_id"],
         org_name=ctx["org_name"],
-        **payload.model_dump(),
+        **create_data,
     )
-    return await job.insert()
+    try:
+        return await job.insert()
+    except DuplicateKeyError as exc:
+        raise _duplicate_source_url_error() from exc
 
 
 # ── UPDATE (owner or team_manager) ────────────────
@@ -166,9 +197,15 @@ async def update_job(
         raise HTTPException(status_code=404, detail="Job not found")
     if not _can_manage(job, ctx["user_id"], ctx["org_id"], ctx["org_role"]):
         raise HTTPException(status_code=403, detail="Not authorized to edit this job")
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    update_data = payload.model_dump(exclude_unset=True)
+    if "source_url" in update_data and update_data["source_url"]:
+        update_data["source_url"] = await _ensure_source_url_available(update_data["source_url"], job_id)
+    for field, value in update_data.items():
         setattr(job, field, value)
-    return await job.save()
+    try:
+        return await job.save()
+    except DuplicateKeyError as exc:
+        raise _duplicate_source_url_error() from exc
 
 
 # ── DELETE (owner or team_manager) ────────────────

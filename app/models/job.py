@@ -5,6 +5,7 @@ from typing import List, Optional
 
 from beanie import Document
 from pydantic import BaseModel, Field
+from pymongo import ASCENDING, IndexModel
 
 from app.models.base import MidasDocument
 
@@ -37,6 +38,12 @@ class JobDocument(Document, MidasDocument):
             "company",
             "created_at",
             ("created_at", "company"),
+            IndexModel(
+                [("source_url", ASCENDING)],
+                unique=True,
+                partialFilterExpression={"source_url": {"$type": "string"}},
+                name="unique_source_url",
+            ),
         ]
 
 
