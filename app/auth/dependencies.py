@@ -46,6 +46,30 @@ async def get_current_user(token: str = Depends(_extract_token)) -> Dict:
     return claims
 
 
+async def get_optional_current_user(authorization: Optional[str] = Header(None)) -> Optional[Dict]:
+    """Verify Clerk JWT when present; otherwise return None for public endpoints."""
+    if not authorization:
+        return None
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authorization header must start with 'Bearer '",
+        )
+    token = authorization.split(" ", 1)[1].strip()
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token is empty",
+        )
+    try:
+        return await verify_clerk_token(token)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e),
+        )
+
+
 # ── Scoped extractors ──
 
 async def get_current_user_id(user: Dict = Depends(get_current_user)) -> str:
@@ -131,6 +155,45 @@ async def get_auth_context(
             "profile_id": str | None,  # from X-Profile-Id header
         }
     """
+    return {
+        "user_id": user_id,
+        "org_id": org_id,
+        "org_role": org_role,
+        "org_name": org_name,
+        "profile_id": profile_id,
+    }
+
+
+async def get_optional_auth_context(
+    user: Optional[Dict] = Depends(get_optional_current_user),
+    profile_id: Optional[str] = Depends(get_current_profile_id),
+) -> Optional[Dict]:
+    """Return auth context for endpoints that support both public and scoped reads."""
+    if not user:
+        return None
+
+    user_id = user.get("sub")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token missing 'sub' claim",
+        )
+
+    org_claims = user.get("o", {})
+    org_id = org_claims.get("id") if isinstance(org_claims, dict) else user.get("id")
+    if not org_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No active organization â€” select an org in the app.",
+        )
+
+    org_role = (
+        org_claims["rol"]
+        if isinstance(org_claims, dict) and "rol" in org_claims
+        else user.get("org_role", "org:member")
+    )
+    org_name = user.get("org_name") or ((user.get("o") or {}).get("slg")) or "Unknown"
+
     return {
         "user_id": user_id,
         "org_id": org_id,

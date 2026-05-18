@@ -7,7 +7,11 @@ from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.pagination import CursorPage, add_cursor_filter, build_cursor_page
-from app.auth.dependencies import get_auth_context, get_current_profile_id
+from app.auth.dependencies import (
+    get_auth_context,
+    get_current_profile_id,
+    get_optional_auth_context,
+)
 from app.models.application import ApplicationDocument
 from app.models.job import JobAnalyzeRequest, JobCreate, JobDocument, JobUpdate
 from app.services.llm_service import extract_job_fields
@@ -37,9 +41,11 @@ def _can_manage(job: JobDocument, user_id: str, org_id: str, org_role: str) -> b
 async def list_jobs(
     tag: Optional[str] = None,
     search: Optional[str] = None,
+    creator: str = Query(default="all", pattern="^(all|me|org)$"),
     cursor: Optional[str] = None,
     limit: int = Query(default=25, ge=1, le=100),
     profile_id: Optional[str] = Depends(get_current_profile_id),
+    auth_ctx: Optional[dict] = Depends(get_optional_auth_context),
 ):
     """List jobs — publicly accessible, no auth required.
 
@@ -56,6 +62,13 @@ async def list_jobs(
             {"location": {"$regex": search, "$options": "i"}},
             {"tags": {"$regex": search, "$options": "i"}},
         ]
+    if creator != "all":
+        if not auth_ctx:
+            raise HTTPException(status_code=401, detail="Authentication required for creator filter")
+        if creator == "me":
+            filters["user_id"] = auth_ctx["user_id"]
+        elif creator == "org":
+            filters["org_id"] = auth_ctx["org_id"]
 
     if profile_id:
         applied = await ApplicationDocument.find(
