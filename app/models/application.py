@@ -74,7 +74,9 @@ class ApplicationDocument(Document, MidasDocument):
             "stage",
             "company",
             "tags",
+            "updated_at",
             ("user_id", "stage"),
+            ("org_id", "profile_id", "stage", "updated_at"),
         ]
 
 

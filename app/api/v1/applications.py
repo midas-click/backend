@@ -1,9 +1,13 @@
 """Applications API — full CRUD + kanban stage management + communication logs."""
 
+import base64
+import json
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from bson import ObjectId
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 
 from app.auth.dependencies import get_auth_context
 from app.models.application import (
@@ -21,13 +25,37 @@ from app.models.resume import ResumeDocument
 router = APIRouter(tags=["Applications"])
 
 
+class ApplicationListResponse(BaseModel):
+    items: List[ApplicationDocument]
+    next_cursor: Optional[str] = None
+    has_more: bool = False
+
+
+def _encode_cursor(app: ApplicationDocument) -> str:
+    payload = {
+        "updated_at": app.updated_at.isoformat(),
+        "id": str(app.id),
+    }
+    return base64.urlsafe_b64encode(json.dumps(payload).encode()).decode()
+
+
+def _decode_cursor(cursor: str) -> tuple[datetime, ObjectId]:
+    try:
+        payload = json.loads(base64.urlsafe_b64decode(cursor.encode()).decode())
+        return datetime.fromisoformat(payload["updated_at"]), ObjectId(payload["id"])
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Invalid cursor") from exc
+
+
 # ── LIST ──────────────────────────────────────────
-@router.get("/applications", response_model=List[ApplicationDocument])
+@router.get("/applications", response_model=ApplicationListResponse)
 async def list_applications(
     stage: Optional[str] = None,
     tag: Optional[str] = None,
     company: Optional[str] = None,
     search: Optional[str] = None,
+    cursor: Optional[str] = None,
+    limit: int = Query(default=25, ge=1, le=100),
     ctx: dict = Depends(get_auth_context),
 ):
     filters: dict = {"org_id": ctx["org_id"]}
@@ -46,7 +74,33 @@ async def list_applications(
             {"location": {"$regex": search, "$options": "i"}},
             {"tags": {"$regex": search, "$options": "i"}},
         ]
-    return await ApplicationDocument.find(filters).sort("-updated_at").to_list()
+    if cursor:
+        cursor_updated_at, cursor_id = _decode_cursor(cursor)
+        filters["$and"] = [
+            {
+                "$or": [
+                    {"updated_at": {"$lt": cursor_updated_at}},
+                    {
+                        "updated_at": cursor_updated_at,
+                        "_id": {"$lt": cursor_id},
+                    },
+                ],
+            },
+        ]
+
+    items = (
+        await ApplicationDocument.find(filters)
+        .sort("-updated_at", "-_id")
+        .limit(limit + 1)
+        .to_list()
+    )
+    has_more = len(items) > limit
+    page_items = items[:limit]
+    return ApplicationListResponse(
+        items=page_items,
+        next_cursor=_encode_cursor(page_items[-1]) if has_more and page_items else None,
+        has_more=has_more,
+    )
 
 
 # ── GET ───────────────────────────────────────────
