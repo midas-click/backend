@@ -1,11 +1,10 @@
 """Job model — manually entered jobs or bookmarked listings."""
 
 from datetime import datetime
-from typing import List, Optional
 
 from beanie import Document
 from pydantic import BaseModel, Field
-from pymongo import ASCENDING, IndexModel
+from pymongo import ASCENDING, DESCENDING, IndexModel
 
 from app.models.base import MidasDocument
 
@@ -17,27 +16,34 @@ class JobDocument(Document, MidasDocument):
 
     title: str
     company: str
-    description: Optional[str] = None
-    location: Optional[str] = None
-    remote: Optional[bool] = None
-    salary_range: Optional[str] = None
+    description: str | None = None
+    location: str | None = None
+    remote: bool | None = None
+    salary_range: str | None = None
 
-    source_url: Optional[str] = None
+    source_url: str | None = None
     org_name: str = "Unknown"     # denormalized org name for display
 
 
-    tags: List[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Settings:
         name = "jobs"
         indexes = [
-            "user_id",
-            "org_id",
-            "company",
-            "created_at",
-            ("created_at", "company"),
+            IndexModel(
+                [("created_at", DESCENDING), ("_id", DESCENDING)],
+                name="jobs_created_cursor",
+            ),
+            IndexModel(
+                [("user_id", ASCENDING), ("created_at", DESCENDING), ("_id", DESCENDING)],
+                name="jobs_user_created_cursor",
+            ),
+            IndexModel(
+                [("org_id", ASCENDING), ("created_at", DESCENDING), ("_id", DESCENDING)],
+                name="jobs_org_created_cursor",
+            ),
             IndexModel(
                 [("source_url", ASCENDING)],
                 unique=True,
@@ -50,12 +56,12 @@ class JobDocument(Document, MidasDocument):
 class JobCreate(BaseModel):
     title: str
     company: str
-    description: Optional[str] = None
-    location: Optional[str] = None
-    remote: Optional[bool] = None
-    salary_range: Optional[str] = None
-    source_url: Optional[str] = None
-    tags: List[str] = Field(default_factory=list)
+    description: str | None = None
+    location: str | None = None
+    remote: bool | None = None
+    salary_range: str | None = None
+    source_url: str | None = None
+    tags: list[str] = Field(default_factory=list)
 
 
 class JobAnalyzeRequest(BaseModel):
@@ -64,11 +70,11 @@ class JobAnalyzeRequest(BaseModel):
 
 
 class JobUpdate(BaseModel):
-    title: Optional[str] = None
-    company: Optional[str] = None
-    description: Optional[str] = None
-    location: Optional[str] = None
-    remote: Optional[bool] = None
-    salary_range: Optional[str] = None
-    source_url: Optional[str] = None
-    tags: Optional[List[str]] = None
+    title: str | None = None
+    company: str | None = None
+    description: str | None = None
+    location: str | None = None
+    remote: bool | None = None
+    salary_range: str | None = None
+    source_url: str | None = None
+    tags: list[str] | None = None

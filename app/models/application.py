@@ -2,10 +2,10 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional
 
 from beanie import Document
 from pydantic import BaseModel, Field
+from pymongo import ASCENDING, DESCENDING, IndexModel
 
 from app.models.base import MidasDocument
 
@@ -25,13 +25,13 @@ class CommunicationLog(BaseModel):
     date: datetime = Field(default_factory=datetime.utcnow)
     channel: str = "email"  # email | phone | linkedin | in_person
     summary: str
-    raw_content: Optional[str] = None
+    raw_content: str | None = None
 
 
 class TimelineEvent(BaseModel):
     date: datetime = Field(default_factory=datetime.utcnow)
     event: str  # e.g. "Applied", "Phone screen scheduled"
-    detail: Optional[str] = None
+    detail: str | None = None
 
 
 # ── Main document ────────────────────────────
@@ -40,29 +40,29 @@ class ApplicationDocument(Document, MidasDocument):
 
     user_id: str = Field(default="default")  # Clerk user ID (sub claim)
     org_id: str = Field(default="default")  # Clerk organization ID (org_id claim)
-    profile_id: Optional[str] = None         # active profile ID
-    job_id: Optional[str] = None  # links to source Job
+    profile_id: str | None = None         # active profile ID
+    job_id: str | None = None  # links to source Job
     job_title: str
     company: str
-    location: Optional[str] = None
-    source_url: Optional[str] = None  # denormalized from Job — survives job deletion
-    salary_expectation: Optional[str] = None
+    location: str | None = None
+    source_url: str | None = None  # denormalized from Job — survives job deletion
+    salary_expectation: str | None = None
 
     stage: str = ApplicationStage.APPLIED.value
-    initial_contact_date: Optional[datetime] = None
-    resume_id: Optional[str] = None
-    resume_filename: Optional[str] = None  # denormalized from Resume — survives resume deletion
+    initial_contact_date: datetime | None = None
+    resume_id: str | None = None
+    resume_filename: str | None = None  # denormalized from Resume — survives resume deletion
 
-    tags: List[str] = Field(default_factory=list)  # e.g. ["react", "healthtech"]
+    tags: list[str] = Field(default_factory=list)  # e.g. ["react", "healthtech"]
 
-    match_score: Optional[float] = None         # 0-100
-    match_explanation: Optional[str] = None
+    match_score: float | None = None         # 0-100
+    match_explanation: str | None = None
 
-    communication_log: List[CommunicationLog] = Field(default_factory=list)
-    timeline: List[TimelineEvent] = Field(default_factory=list)
+    communication_log: list[CommunicationLog] = Field(default_factory=list)
+    timeline: list[TimelineEvent] = Field(default_factory=list)
 
-    follow_up_date: Optional[datetime] = None
-    notes: Optional[str] = None
+    follow_up_date: datetime | None = None
+    notes: str | None = None
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
@@ -70,55 +70,82 @@ class ApplicationDocument(Document, MidasDocument):
     class Settings:
         name = "applications"
         indexes = [
-            "user_id",
-            "stage",
-            "company",
-            "tags",
-            "updated_at",
-            ("user_id", "stage"),
-            ("org_id", "profile_id", "stage", "updated_at"),
+            IndexModel(
+                [("org_id", ASCENDING), ("updated_at", DESCENDING), ("_id", DESCENDING)],
+                name="apps_org_updated_cursor",
+            ),
+            IndexModel(
+                [("org_id", ASCENDING), ("stage", ASCENDING), ("updated_at", DESCENDING), ("_id", DESCENDING)],
+                name="apps_org_stage_updated_cursor",
+            ),
+            IndexModel(
+                [("org_id", ASCENDING), ("profile_id", ASCENDING), ("updated_at", DESCENDING), ("_id", DESCENDING)],
+                name="apps_profile_updated_cursor",
+            ),
+            IndexModel(
+                [
+                    ("org_id", ASCENDING),
+                    ("profile_id", ASCENDING),
+                    ("stage", ASCENDING),
+                    ("updated_at", DESCENDING),
+                    ("_id", DESCENDING),
+                ],
+                name="apps_profile_stage_updated_cursor",
+            ),
+            IndexModel(
+                [("profile_id", ASCENDING), ("job_id", ASCENDING)],
+                name="apps_profile_job_lookup",
+            ),
+            IndexModel(
+                [("resume_id", ASCENDING)],
+                name="apps_resume_lookup",
+            ),
+            IndexModel(
+                [("org_id", ASCENDING), ("profile_id", ASCENDING), ("created_at", DESCENDING)],
+                name="apps_profile_created_analytics",
+            ),
         ]
 
 
 # ── API request / response schemas (Pydantic) ──
 class ApplicationCreate(BaseModel):
-    job_id: Optional[str] = None
+    job_id: str | None = None
     job_title: str
     company: str
-    stage: Optional[str] = None
-    location: Optional[str] = None
-    source_url: Optional[str] = None
-    salary_expectation: Optional[str] = None
-    initial_contact_date: Optional[datetime] = None
-    resume_id: Optional[str] = None
-    tags: List[str] = Field(default_factory=list)
-    notes: Optional[str] = None
+    stage: str | None = None
+    location: str | None = None
+    source_url: str | None = None
+    salary_expectation: str | None = None
+    initial_contact_date: datetime | None = None
+    resume_id: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    notes: str | None = None
 
 
 class ApplicationBatchCreate(BaseModel):
-    job_ids: List[str] = Field(min_length=1, max_length=100)
+    job_ids: list[str] = Field(min_length=1, max_length=100)
 
 
 class ApplicationUpdate(BaseModel):
-    job_title: Optional[str] = None
-    company: Optional[str] = None
-    location: Optional[str] = None
-    salary_expectation: Optional[str] = None
-    initial_contact_date: Optional[datetime] = None
-    resume_id: Optional[str] = None
-    tags: Optional[List[str]] = None
-    match_score: Optional[float] = None
-    match_explanation: Optional[str] = None
-    follow_up_date: Optional[datetime] = None
-    notes: Optional[str] = None
+    job_title: str | None = None
+    company: str | None = None
+    location: str | None = None
+    salary_expectation: str | None = None
+    initial_contact_date: datetime | None = None
+    resume_id: str | None = None
+    tags: list[str] | None = None
+    match_score: float | None = None
+    match_explanation: str | None = None
+    follow_up_date: datetime | None = None
+    notes: str | None = None
 
 
 class StageChange(BaseModel):
     stage: str
-    detail: Optional[str] = None
+    detail: str | None = None
 
 
 class CommunicationCreate(BaseModel):
     channel: str = "email"
     summary: str
-    raw_content: Optional[str] = None
+    raw_content: str | None = None
