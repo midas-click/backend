@@ -3,13 +3,16 @@
 from datetime import datetime
 from typing import Optional
 
+from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.pagination import CursorPage, add_cursor_filter, build_cursor_page
 from app.auth.dependencies import get_auth_context
 from app.models.application import (
+    ApplicationBatchCreate,
     ApplicationCreate,
     ApplicationDocument,
+    ApplicationStage,
     ApplicationUpdate,
     CommunicationCreate,
     CommunicationLog,
@@ -106,6 +109,51 @@ async def create_application(payload: ApplicationCreate, ctx: dict = Depends(get
         timeline=[TimelineEvent(event="Applied", detail="Application created")],
     )
     return await app.insert()
+
+
+@router.post("/applications/batch", response_model=list[ApplicationDocument], status_code=status.HTTP_201_CREATED)
+async def create_applications_batch(payload: ApplicationBatchCreate, ctx: dict = Depends(get_auth_context)):
+    job_ids = list(dict.fromkeys(payload.job_ids))
+    object_ids = [ObjectId(job_id) for job_id in job_ids if ObjectId.is_valid(job_id)]
+    if len(object_ids) != len(job_ids):
+        raise HTTPException(status_code=400, detail="One or more selected job IDs are invalid")
+
+    resume_filter = {"org_id": ctx["org_id"]}
+    if ctx["profile_id"]:
+        resume_filter["profile_id"] = ctx["profile_id"]
+    resume = await ResumeDocument.find(resume_filter).sort("-created_at").first_or_none()
+    if not resume:
+        raise HTTPException(status_code=400, detail="Upload at least one resume before creating applications.")
+
+    jobs = await JobDocument.find({"_id": {"$in": object_ids}}).to_list()
+    jobs_by_id = {str(job.id): job for job in jobs}
+    missing_ids = [job_id for job_id in job_ids if job_id not in jobs_by_id]
+    if missing_ids:
+        raise HTTPException(status_code=404, detail="One or more selected jobs were not found")
+
+    applications: list[ApplicationDocument] = []
+    for job_id in job_ids:
+        job = jobs_by_id[job_id]
+        app = ApplicationDocument(
+            user_id=ctx["user_id"],
+            org_id=ctx["org_id"],
+            profile_id=ctx["profile_id"],
+            job_id=str(job.id),
+            job_title=job.title,
+            company=job.company,
+            stage=ApplicationStage.APPLIED.value,
+            location=job.location or "",
+            source_url=job.source_url,
+            salary_expectation=job.salary_range,
+            tags=job.tags,
+            notes=job.description,
+            resume_id=str(resume.id),
+            resume_filename=resume.original_filename,
+            timeline=[TimelineEvent(event="Applied", detail="Application created")],
+        )
+        applications.append(await app.insert())
+
+    return applications
 
 
 # ── UPDATE ────────────────────────────────────────

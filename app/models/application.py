@@ -95,6 +95,10 @@ class ApplicationCreate(BaseModel):
     notes: Optional[str] = None
 
 
+class ApplicationBatchCreate(BaseModel):
+    job_ids: List[str] = Field(min_length=1, max_length=100)
+
+
 class ApplicationUpdate(BaseModel):
     job_title: Optional[str] = None
     company: Optional[str] = None

@@ -1,12 +1,11 @@
 """Centralised config via pydantic-settings, loaded from .env."""
 
 from pathlib import Path
-from typing import List
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-def _parse_origins(v: str) -> List[str]:
+def _parse_origins(v: str) -> list[str]:
     """Parse CORS_ORIGINS from comma-separated string to list."""
     return [o.strip() for o in v.split(",") if o.strip()]
 
@@ -24,7 +23,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:5173"
 
     @property
-    def cors_origins_list(self) -> List[str]:
+    def cors_origins_list(self) -> list[str]:
         return _parse_origins(self.CORS_ORIGINS)
 
     # ── MongoDB ──────────────────────────────
