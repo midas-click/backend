@@ -63,6 +63,7 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "deepseek-chat"
 
     # ── Embeddings / RAG ─────────────────────
+    EMBEDDINGS_ENABLED: bool = False
     EMBEDDING_MODEL: str = "BAAI/bge-base-en-v1.5"
     EMBEDDING_DIMENSIONS: int = 768
     EMBEDDING_BATCH_SIZE: int = 16
