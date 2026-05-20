@@ -14,6 +14,7 @@ from app.models.application import ApplicationDocument
 from app.models.job import JobDocument
 from app.models.profile import ProfileDocument
 from app.models.resume import ResumeDocument
+from app.models.resume_chunk import ResumeChunkDocument
 
 OBSOLETE_INDEXES = {
     "jobs": {
@@ -48,6 +49,7 @@ async def main() -> None:
         document_models=[
             ApplicationDocument,
             ResumeDocument,
+            ResumeChunkDocument,
             JobDocument,
             ProfileDocument,
         ],

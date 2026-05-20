@@ -8,6 +8,7 @@ from app.models.application import ApplicationDocument
 from app.models.job import JobDocument
 from app.models.profile import ProfileDocument
 from app.models.resume import ResumeDocument
+from app.models.resume_chunk import ResumeChunkDocument
 
 _client: AsyncIOMotorClient | None = None
 _db: AsyncIOMotorDatabase | None = None
@@ -23,6 +24,7 @@ async def connect_to_mongo() -> None:
         document_models=[
             ApplicationDocument,
             ResumeDocument,
+            ResumeChunkDocument,
             JobDocument,
             ProfileDocument,
         ],
