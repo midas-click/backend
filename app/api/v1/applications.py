@@ -21,6 +21,7 @@ from app.models.application import (
 )
 from app.models.job import JobDocument
 from app.models.resume import ResumeDocument
+from app.services.match_score_service import calculate_match_score, score_resume_for_job
 
 router = APIRouter(tags=["Applications"])
 
@@ -90,16 +91,24 @@ async def create_application(payload: ApplicationCreate, ctx: dict = Depends(get
     # Auto-populate source_url from linked Job if not explicitly provided
     if not create_data.get("source_url") and create_data.get("job_id"):
         job = await JobDocument.get(create_data["job_id"])
-        if job:
-            # Only auto-populate if job belongs to the team
-            if job.org_id == ctx["org_id"] and job.source_url:
-                create_data["source_url"] = job.source_url
+        if job and job.source_url:
+            create_data["source_url"] = job.source_url
 
     # Auto-populate resume_filename from linked Resume if not explicitly provided
     if not create_data.get("resume_filename") and create_data.get("resume_id"):
         resume = await ResumeDocument.get(create_data["resume_id"])
         if resume and resume.org_id == ctx["org_id"]:
             create_data["resume_filename"] = resume.original_filename
+
+    if (
+        create_data.get("job_id")
+        and create_data.get("resume_id")
+        and create_data.get("match_score") is None
+    ):
+        match = await score_resume_for_job(create_data["job_id"], create_data["resume_id"], ctx["org_id"])
+        if match:
+            create_data["match_score"] = match.match_score
+            create_data["match_explanation"] = match.match_explanation
 
     app = ApplicationDocument(
         user_id=ctx["user_id"],
@@ -134,6 +143,7 @@ async def create_applications_batch(payload: ApplicationBatchCreate, ctx: dict =
     applications: list[ApplicationDocument] = []
     for job_id in job_ids:
         job = jobs_by_id[job_id]
+        match_score = await calculate_match_score(str(job.id), str(resume.id), ctx["org_id"])
         app = ApplicationDocument(
             user_id=ctx["user_id"],
             org_id=ctx["org_id"],
@@ -149,6 +159,12 @@ async def create_applications_batch(payload: ApplicationBatchCreate, ctx: dict =
             notes=job.description,
             resume_id=str(resume.id),
             resume_filename=resume.original_filename,
+            match_score=match_score,
+            match_explanation=(
+                "Embedding similarity score based on the closest resume sections for this job."
+                if match_score is not None
+                else None
+            ),
             timeline=[TimelineEvent(event="Applied", detail="Application created")],
         )
         applications.append(await app.insert())

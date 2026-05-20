@@ -12,6 +12,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from app.config import settings
 from app.models.application import ApplicationDocument
 from app.models.job import JobDocument
+from app.models.job_chunk import JobChunkDocument
 from app.models.profile import ProfileDocument
 from app.models.resume import ResumeDocument
 from app.models.resume_chunk import ResumeChunkDocument
@@ -51,6 +52,7 @@ async def main() -> None:
             ResumeDocument,
             ResumeChunkDocument,
             JobDocument,
+            JobChunkDocument,
             ProfileDocument,
         ],
     )

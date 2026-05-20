@@ -119,6 +119,8 @@ class ApplicationCreate(BaseModel):
     initial_contact_date: datetime | None = None
     resume_id: str | None = None
     tags: list[str] = Field(default_factory=list)
+    match_score: float | None = None
+    match_explanation: str | None = None
     notes: str | None = None
 
 

@@ -15,7 +15,14 @@ from app.auth.dependencies import (
 )
 from app.models.application import ApplicationDocument
 from app.models.job import JobAnalyzeRequest, JobCreate, JobDocument, JobUpdate
+from app.models.resume import ResumeDocument
+from app.services.job_chunk_service import (
+    JobChunkServiceError,
+    delete_job_chunks,
+    replace_job_chunks,
+)
 from app.services.llm_service import extract_job_fields
+from app.services.match_score_service import ResumeMatchScore, score_resumes_for_job
 
 logger = logging.getLogger(__name__)
 
@@ -127,6 +134,22 @@ async def get_job(job_id: str):
     return job
 
 
+@router.get("/jobs/{job_id}/resume-match-scores", response_model=list[ResumeMatchScore])
+async def get_resume_match_scores(
+    job_id: str,
+    ctx: dict = Depends(get_auth_context),
+):
+    job = await JobDocument.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    resume_filter = {"org_id": ctx["org_id"]}
+    if ctx["profile_id"]:
+        resume_filter["profile_id"] = ctx["profile_id"]
+    resumes = await ResumeDocument.find(resume_filter).sort("-created_at").to_list()
+    return await score_resumes_for_job(job_id, resumes, ctx["org_id"])
+
+
 # ── CREATE (authenticated) ────────────────────────
 @router.post("/jobs/analyze", response_model=JobDocument, status_code=status.HTTP_201_CREATED)
 async def analyze_and_create_job(
@@ -142,7 +165,7 @@ async def analyze_and_create_job(
         extracted = await extract_job_fields(payload.raw_text.strip())
     except Exception as e:
         logger.exception("LLM extraction failed")
-        raise HTTPException(status_code=502, detail=f"AI extraction failed: {e}")
+        raise HTTPException(status_code=502, detail=f"AI extraction failed: {e}") from e
 
     job = JobDocument(
         user_id=ctx["user_id"],
@@ -158,7 +181,14 @@ async def analyze_and_create_job(
         tags=extracted.get("tags", []),
     )
     try:
-        return await job.insert()
+        job = await job.insert()
+        try:
+            await replace_job_chunks(job)
+        except JobChunkServiceError as exc:
+            logger.exception("Job embedding failed for job_id=%s", job.id)
+            await job.delete()
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+        return job
     except DuplicateKeyError as exc:
         raise _duplicate_source_url_error() from exc
 
@@ -179,7 +209,14 @@ async def create_job(
         **create_data,
     )
     try:
-        return await job.insert()
+        job = await job.insert()
+        try:
+            await replace_job_chunks(job)
+        except JobChunkServiceError as exc:
+            logger.exception("Job embedding failed for job_id=%s", job.id)
+            await job.delete()
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+        return job
     except DuplicateKeyError as exc:
         raise _duplicate_source_url_error() from exc
 
@@ -203,7 +240,14 @@ async def update_job(
     for field, value in update_data.items():
         setattr(job, field, value)
     try:
-        return await job.save()
+        job = await job.save()
+        if _job_embedding_fields_changed(update_data):
+            try:
+                await replace_job_chunks(job)
+            except JobChunkServiceError as exc:
+                logger.exception("Job embedding update failed for job_id=%s", job.id)
+                raise HTTPException(status_code=502, detail=str(exc)) from exc
+        return job
     except DuplicateKeyError as exc:
         raise _duplicate_source_url_error() from exc
 
@@ -220,4 +264,9 @@ async def delete_job(
         raise HTTPException(status_code=404, detail="Job not found")
     if not _can_manage(job, ctx["user_id"], ctx["org_id"], ctx["org_role"]):
         raise HTTPException(status_code=403, detail="Not authorized to delete this job")
+    await delete_job_chunks(job_id)
     await job.delete()
+
+
+def _job_embedding_fields_changed(update_data: dict) -> bool:
+    return bool({"title", "company", "description", "location", "salary_range", "tags"} & update_data.keys())
