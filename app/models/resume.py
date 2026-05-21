@@ -15,7 +15,7 @@ class ResumeSection(BaseModel):
 
 
 class ResumeDocument(Document, MidasDocument):
-    """Each uploaded or tailored resume version."""
+    """Each uploaded resume version."""
 
     user_id: str = Field(default="default")       # Clerk user ID (sub claim)
     org_id: str = Field(default="default")       # Clerk organization ID (org_id claim)

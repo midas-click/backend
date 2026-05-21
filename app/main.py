@@ -21,7 +21,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="MidasClick API",
         version="0.1.0",
-        description="Job Application Manager & Resume Optimizer",
+        description="Job Application Tracker with resume matching and analytics",
         lifespan=lifespan,
     )
 
