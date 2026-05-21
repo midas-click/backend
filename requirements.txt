@@ -16,6 +16,10 @@ python-dotenv==1.0.1
 motor==3.7.0
 beanie>=1.30.0,<2.0.0
 
+# Background jobs
+celery[redis]>=5.4.0,<6.0.0
+redis>=5.2.0,<6.0.0
+
 # AWS S3
 boto3==1.36.0
 

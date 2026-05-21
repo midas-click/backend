@@ -27,6 +27,10 @@ class JobDocument(Document, MidasDocument):
 
     tags: list[str] = Field(default_factory=list)
 
+    embedding_status: str = Field(default="disabled")
+    embedding_error: str | None = None
+    embedded_at: datetime | None = None
+
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Settings:

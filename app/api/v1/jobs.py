@@ -17,10 +17,9 @@ from app.config import settings
 from app.models.application import ApplicationDocument
 from app.models.job import JobAnalyzeRequest, JobCreate, JobDocument, JobUpdate
 from app.models.resume import ResumeDocument
+from app.services.embedding_queue_service import enqueue_job_embedding
 from app.services.job_chunk_service import (
-    JobChunkServiceError,
     delete_job_chunks,
-    replace_job_chunks,
 )
 from app.services.job_page_validation_service import validate_job_page
 from app.services.llm_service import extract_job_fields
@@ -196,15 +195,7 @@ async def analyze_and_create_job(
     )
     try:
         job = await job.insert()
-        if settings.EMBEDDINGS_ENABLED:
-            # Temporarily disabled on low-memory Render instances.
-            # Re-enable by setting EMBEDDINGS_ENABLED=true after upgrading the service.
-            try:
-                await replace_job_chunks(job)
-            except JobChunkServiceError as exc:
-                logger.exception("Job embedding failed for job_id=%s", job.id)
-                await job.delete()
-                raise HTTPException(status_code=502, detail=str(exc)) from exc
+        await enqueue_job_embedding(job)
         return job
     except DuplicateKeyError as exc:
         raise _duplicate_source_url_error() from exc
@@ -227,15 +218,7 @@ async def create_job(
     )
     try:
         job = await job.insert()
-        if settings.EMBEDDINGS_ENABLED:
-            # Temporarily disabled on low-memory Render instances.
-            # Re-enable by setting EMBEDDINGS_ENABLED=true after upgrading the service.
-            try:
-                await replace_job_chunks(job)
-            except JobChunkServiceError as exc:
-                logger.exception("Job embedding failed for job_id=%s", job.id)
-                await job.delete()
-                raise HTTPException(status_code=502, detail=str(exc)) from exc
+        await enqueue_job_embedding(job)
         return job
     except DuplicateKeyError as exc:
         raise _duplicate_source_url_error() from exc
@@ -262,13 +245,7 @@ async def update_job(
     try:
         job = await job.save()
         if settings.EMBEDDINGS_ENABLED and _job_embedding_fields_changed(update_data):
-            # Temporarily disabled on low-memory Render instances.
-            # Re-enable by setting EMBEDDINGS_ENABLED=true after upgrading the service.
-            try:
-                await replace_job_chunks(job)
-            except JobChunkServiceError as exc:
-                logger.exception("Job embedding update failed for job_id=%s", job.id)
-                raise HTTPException(status_code=502, detail=str(exc)) from exc
+            await enqueue_job_embedding(job)
         return job
     except DuplicateKeyError as exc:
         raise _duplicate_source_url_error() from exc

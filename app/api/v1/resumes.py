@@ -8,14 +8,11 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
 
 from app.auth.dependencies import get_auth_context
-from app.config import settings
 from app.models.application import ApplicationDocument
 from app.models.resume import ResumeDocument
-from app.services.embedding_service import EmbeddingServiceError
+from app.services.embedding_queue_service import enqueue_resume_embedding
 from app.services.resume_chunk_service import (
-    ResumeChunkServiceError,
     delete_resume_chunks,
-    replace_resume_chunks,
 )
 from app.services.resume_parser import parse_resume_bytes
 from app.services.s3_service import generate_presigned_upload_url, upload_to_s3
@@ -78,15 +75,7 @@ async def upload_resume(file: ResumeUploadFile, ctx: AuthContext):
         tags=[],
     )
     resume = await resume.insert()
-    if settings.EMBEDDINGS_ENABLED:
-        # Temporarily disabled on low-memory Render instances.
-        # Re-enable by setting EMBEDDINGS_ENABLED=true after upgrading the service.
-        try:
-            await replace_resume_chunks(resume, sections)
-        except (EmbeddingServiceError, ResumeChunkServiceError) as exc:
-            logger.exception("Resume embedding failed for resume_id=%s", resume.id)
-            await resume.delete()
-            raise HTTPException(status_code=502, detail=str(exc)) from exc
+    await enqueue_resume_embedding(resume)
     return resume
 
 

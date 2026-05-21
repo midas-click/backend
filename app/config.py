@@ -64,12 +64,26 @@ class Settings(BaseSettings):
 
     # ── Embeddings / RAG ─────────────────────
     EMBEDDINGS_ENABLED: bool = False
+    EMBEDDINGS_ASYNC_ENABLED: bool = True
     EMBEDDING_MODEL: str = "BAAI/bge-base-en-v1.5"
     EMBEDDING_DIMENSIONS: int = 768
     EMBEDDING_BATCH_SIZE: int = 16
     EMBEDDING_THREADS: int | None = None
     EMBEDDING_CACHE_DIR: str = ""
     RESUME_CHUNK_MAX_CHARS: int = 1800
+
+    # ── Background jobs ──────────────────────
+    REDIS_URL: str = "redis://localhost:6379/0"
+    CELERY_BROKER_URL: str = ""
+    CELERY_RESULT_BACKEND: str = ""
+
+    @property
+    def celery_broker_url(self) -> str:
+        return self.CELERY_BROKER_URL or self.REDIS_URL
+
+    @property
+    def celery_result_backend(self) -> str:
+        return self.CELERY_RESULT_BACKEND or self.REDIS_URL
 
 
 settings = Settings()

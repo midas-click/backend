@@ -29,6 +29,10 @@ class ResumeDocument(Document, MidasDocument):
 
     tags: List[str] = Field(default_factory=list)
 
+    embedding_status: str = Field(default="disabled")
+    embedding_error: Optional[str] = None
+    embedded_at: Optional[datetime] = None
+
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Settings:
