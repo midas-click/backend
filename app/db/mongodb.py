@@ -17,6 +17,9 @@ _db: AsyncIOMotorDatabase | None = None
 
 async def connect_to_mongo() -> None:
     global _client, _db
+    if _client is not None and _db is not None:
+        return
+
     _client = AsyncIOMotorClient(settings.MONGODB_URI)
     _db = _client[settings.MONGO_DB_NAME]
 
@@ -34,6 +37,8 @@ async def connect_to_mongo() -> None:
 
 
 async def close_mongo_connection() -> None:
-    global _client
+    global _client, _db
     if _client:
         _client.close()
+    _client = None
+    _db = None

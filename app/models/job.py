@@ -82,3 +82,21 @@ class JobUpdate(BaseModel):
     salary_range: str | None = None
     source_url: str | None = None
     tags: list[str] | None = None
+
+
+class JobListItem(BaseModel):
+    id: str
+    user_id: str
+    org_id: str | None = None
+    title: str
+    company: str
+    location: str | None = None
+    remote: bool | None = None
+    salary_range: str | None = None
+    source_url: str | None = None
+    org_name: str
+    tags: list[str] = Field(default_factory=list)
+    embedding_status: str | None = None
+    embedding_error: str | None = None
+    embedded_at: datetime | None = None
+    created_at: datetime

@@ -1,6 +1,8 @@
 """Jobs API — public listing, authenticated creation/management with role-based access."""
 
 import logging
+from datetime import datetime, timedelta
+from time import perf_counter
 from typing import Optional
 
 from bson import ObjectId
@@ -15,7 +17,7 @@ from app.auth.dependencies import (
 )
 from app.config import settings
 from app.models.application import ApplicationDocument
-from app.models.job import JobAnalyzeRequest, JobCreate, JobDocument, JobUpdate
+from app.models.job import JobAnalyzeRequest, JobCreate, JobDocument, JobListItem, JobUpdate
 from app.models.resume import ResumeDocument
 from app.services.embedding_queue_service import enqueue_job_embedding
 from app.services.job_chunk_service import (
@@ -33,7 +35,7 @@ router = APIRouter(tags=["Jobs"])
 _MANAGER_ROLES = {"org:admin"}
 
 
-JobListResponse = CursorPage[JobDocument]
+JobListResponse = CursorPage[JobListItem]
 
 
 def _can_manage(job: JobDocument, user_id: str, org_id: str, org_role: str) -> bool:
@@ -99,28 +101,24 @@ async def list_jobs(
         elif creator == "org":
             filters["org_id"] = auth_ctx["org_id"]
 
-    if profile_id:
-        applied = await ApplicationDocument.find(
-            {"profile_id": profile_id}
-        ).to_list()
-        applied_job_ids = [
-            ObjectId(app.job_id)
-            for app in applied
-            if app.job_id and ObjectId.is_valid(app.job_id)
-        ]
-        if applied_job_ids:
-            filters["_id"] = {"$nin": applied_job_ids}
-
     try:
+        if profile_id:
+            applied_job_ids = await _get_recent_applied_job_object_ids(profile_id)
+            if applied_job_ids:
+                filters["_id"] = {"$nin": applied_job_ids}
+
         add_cursor_filter(filters, cursor, "created_at")
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="Invalid cursor") from exc
 
-    jobs = (
-        await JobDocument.find(filters)
-        .sort("-created_at", "-_id")
-        .limit(limit + 1)
-        .to_list()
+    started_at = perf_counter()
+    jobs = await _find_job_list_items(filters, limit + 1)
+    logger.info(
+        "Listed jobs profile_id=%s limit=%s items=%s elapsed=%.3fs",
+        profile_id,
+        limit,
+        len(jobs),
+        perf_counter() - started_at,
     )
     return build_cursor_page(jobs, limit, "created_at")
 
@@ -269,3 +267,49 @@ async def delete_job(
 
 def _job_embedding_fields_changed(update_data: dict) -> bool:
     return bool({"title", "company", "description", "location", "salary_range", "tags"} & update_data.keys())
+
+
+async def _find_job_list_items(
+    filters: dict,
+    limit: int,
+) -> list[JobListItem]:
+    cursor = JobDocument.get_motor_collection().find(
+        filters,
+        projection={"description": 0},
+    ).sort([("created_at", -1), ("_id", -1)]).limit(limit)
+    docs = await cursor.to_list(length=limit)
+    return [_job_list_item_from_doc(doc) for doc in docs]
+
+
+async def _get_recent_applied_job_object_ids(profile_id: str) -> list[ObjectId]:
+    since = datetime.utcnow() - timedelta(days=3)
+    cursor = ApplicationDocument.get_motor_collection().find({
+        "profile_id": profile_id,
+        "created_at": {"$gte": since},
+    }, projection={"job_id": 1})
+    applications = await cursor.to_list(length=None)
+    return [
+        ObjectId(app["job_id"])
+        for app in applications
+        if app.get("job_id") and ObjectId.is_valid(app["job_id"])
+    ]
+
+
+def _job_list_item_from_doc(doc: dict) -> JobListItem:
+    return JobListItem(
+        id=str(doc["_id"]),
+        user_id=doc.get("user_id", "default"),
+        org_id=doc.get("org_id"),
+        title=doc.get("title", "Untitled"),
+        company=doc.get("company", "Unknown"),
+        location=doc.get("location"),
+        remote=doc.get("remote"),
+        salary_range=doc.get("salary_range"),
+        source_url=doc.get("source_url"),
+        org_name=doc.get("org_name", "Unknown"),
+        tags=doc.get("tags") or [],
+        embedding_status=doc.get("embedding_status"),
+        embedding_error=doc.get("embedding_error"),
+        embedded_at=doc.get("embedded_at"),
+        created_at=doc["created_at"],
+    )

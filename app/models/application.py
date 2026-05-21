@@ -97,6 +97,10 @@ class ApplicationDocument(Document, MidasDocument):
                 name="apps_profile_job_lookup",
             ),
             IndexModel(
+                [("profile_id", ASCENDING), ("created_at", DESCENDING), ("job_id", ASCENDING)],
+                name="apps_profile_recent_jobs_lookup",
+            ),
+            IndexModel(
                 [("resume_id", ASCENDING)],
                 name="apps_resume_lookup",
             ),

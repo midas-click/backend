@@ -49,8 +49,7 @@ async def replace_job_chunks(job: JobDocument) -> list[JobChunkDocument]:
     ]
 
     await JobChunkDocument.find(JobChunkDocument.job_id == str(job.id)).delete()
-    for document in documents:
-        await document.insert()
+    await _insert_documents(documents)
     return documents
 
 
@@ -107,3 +106,12 @@ def _split_text(text: str, max_chars: int) -> list[str]:
 
 def _split_long_text(text: str, max_chars: int) -> list[str]:
     return [text[start:start + max_chars].strip() for start in range(0, len(text), max_chars)]
+
+
+async def _insert_documents(documents: list[JobChunkDocument]) -> None:
+    if hasattr(JobChunkDocument, "insert_many"):
+        await JobChunkDocument.insert_many(documents)
+        return
+
+    for document in documents:
+        await document.insert()

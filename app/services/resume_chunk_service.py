@@ -66,8 +66,7 @@ async def replace_resume_chunks(
     ]
 
     await ResumeChunkDocument.find(ResumeChunkDocument.resume_id == str(resume.id)).delete()
-    for document in documents:
-        await document.insert()
+    await _insert_documents(documents)
     return documents
 
 
@@ -108,3 +107,12 @@ def _split_text(text: str, max_chars: int) -> list[str]:
 
 def _split_long_text(text: str, max_chars: int) -> list[str]:
     return [text[start:start + max_chars].strip() for start in range(0, len(text), max_chars)]
+
+
+async def _insert_documents(documents: list[ResumeChunkDocument]) -> None:
+    if hasattr(ResumeChunkDocument, "insert_many"):
+        await ResumeChunkDocument.insert_many(documents)
+        return
+
+    for document in documents:
+        await document.insert()
