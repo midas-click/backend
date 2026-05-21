@@ -22,6 +22,7 @@ from app.services.job_chunk_service import (
     delete_job_chunks,
     replace_job_chunks,
 )
+from app.services.job_page_validation_service import validate_job_page
 from app.services.llm_service import extract_job_fields
 from app.services.match_score_service import ResumeMatchScore, score_resumes_for_job
 
@@ -161,6 +162,18 @@ async def analyze_and_create_job(
     if not payload.raw_text.strip():
         raise HTTPException(status_code=400, detail="Job description is required")
     source_url = await _ensure_source_url_available(payload.source_url)
+    validation = validate_job_page(payload.raw_text, source_url)
+    if not validation.is_job_page:
+        logger.info(
+            "Rejected non-job page source_url=%s confidence=%s signals=%s",
+            source_url,
+            validation.confidence,
+            validation.signals,
+        )
+        raise HTTPException(
+            status_code=422,
+            detail=f"{validation.reason}. Try opening a page with a full job description.",
+        )
 
     try:
         extracted = await extract_job_fields(payload.raw_text.strip())
