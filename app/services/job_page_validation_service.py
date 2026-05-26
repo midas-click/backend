@@ -23,6 +23,9 @@ JOB_BOARD_DOMAINS = {
     "jobs.ashbyhq.com",
     "jobs.lever.co",
     "jobs.smartrecruiters.com",
+    "applytojob.com",
+    "icims.com",
+    "jobvite.com",
     "linkedin.com",
     "myworkdayjobs.com",
     "recruitee.com",
@@ -33,18 +36,26 @@ JOB_BOARD_DOMAINS = {
 JOB_SECTION_PHRASES = {
     "about the role",
     "about this role",
+    "about the job",
+    "about the team",
+    "job summary",
+    "role overview",
     "responsibilities",
     "what you'll do",
     "what you will do",
+    "you will",
     "what we're looking for",
     "what we are looking for",
+    "who you are",
     "qualifications",
     "requirements",
     "minimum qualifications",
     "preferred qualifications",
+    "nice to have",
     "skills",
     "experience",
     "benefits",
+    "perks",
     "compensation",
     "salary",
 }
@@ -53,8 +64,10 @@ JOB_ACTION_PHRASES = {
     "apply now",
     "apply for this job",
     "submit application",
+    "submit your application",
     "job description",
     "job details",
+    "job type",
     "employment type",
     "full-time",
     "part-time",
@@ -75,6 +88,16 @@ HIRING_TERMS = {
     "coordinator",
     "associate",
     "director",
+    "architect",
+    "consultant",
+    "representative",
+    "sales",
+    "executive",
+    "technician",
+    "administrator",
+    "lead",
+    "senior",
+    "intern",
     "recruiter",
     "candidate",
     "applicant",
@@ -108,8 +131,9 @@ def validate_job_page(raw_text: str, source_url: str | None = None) -> JobPageVa
     text = _normalize_text(raw_text)
     signals: list[str] = []
     score = 0.0
+    known_job_domain = _is_known_job_domain(source_url)
 
-    if _is_known_job_domain(source_url):
+    if known_job_domain:
         score += 0.3
         signals.append("known job board domain")
 
@@ -151,8 +175,14 @@ def validate_job_page(raw_text: str, source_url: str | None = None) -> JobPageVa
         signals.append(f"{negative_matches} non-job page signals")
 
     confidence = max(0.0, min(1.0, round(score, 2)))
-    has_required_content = len(text) >= MIN_TEXT_LENGTH or section_matches + action_matches >= 3
-    is_job_page = confidence >= JOB_PAGE_THRESHOLD and has_required_content
+    signal_count = section_matches + action_matches + hiring_matches
+    has_required_content = (
+        len(text) >= MIN_TEXT_LENGTH
+        or section_matches + action_matches >= 3
+        or (known_job_domain and len(text) >= 180 and signal_count >= 2)
+    )
+    threshold = 0.45 if known_job_domain else JOB_PAGE_THRESHOLD
+    is_job_page = confidence >= threshold and has_required_content
     reason = (
         "Page looks like a job description"
         if is_job_page

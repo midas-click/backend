@@ -39,6 +39,22 @@ def test_validate_job_page_accepts_unknown_domain_with_strong_job_text():
     assert result.is_job_page is True
 
 
+def test_validate_job_page_accepts_known_board_with_concise_sales_job():
+    text = """
+    Founding Sales Development Representative
+    Advatix is hiring a sales representative to support outbound pipeline.
+    Job type: full-time. Location: remote in the United States.
+    You will identify prospects, qualify leads, and partner with account executives.
+    Experience with CRM tools, cold outreach, and strong communication is required.
+    Submit your application to be considered for this role.
+    """
+
+    result = validate_job_page(text, "https://advatixinc.applytojob.com/apply/example")
+
+    assert result.is_job_page is True
+    assert "known job board domain" in result.signals
+
+
 def test_validate_job_page_rejects_blog_article():
     text = """
     How to plan your next product launch
