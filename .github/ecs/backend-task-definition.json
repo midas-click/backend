@@ -52,10 +52,6 @@
                     "value": "midas-click-resumes"
                 },
                 {
-                    "name": "DEBUG",
-                    "value": "false"
-                },
-                {
                     "name": "CLERK_ISSUER",
                     "value": "https://ace-molly-26.clerk.accounts.dev"
                 },
