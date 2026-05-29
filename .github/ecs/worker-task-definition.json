@@ -1,0 +1,111 @@
+{
+    "containerDefinitions": [
+        {
+            "name": "worker",
+            "image": "568175862303.dkr.ecr.us-east-2.amazonaws.com/midas-backend@sha256:7c30f185cfd01ad9cb112d43c9d35f71cb4f9af13083593146053f4481b25d88",
+            "cpu": 0,
+            "portMappings": [
+                {
+                    "containerPort": 80,
+                    "hostPort": 80,
+                    "protocol": "tcp",
+                    "name": "worker-80-tcp",
+                    "appProtocol": "http"
+                }
+            ],
+            "essential": true,
+            "command": [
+                "celery",
+                "-A",
+                "app.worker.celery_app:celery_app",
+                "worker",
+                "--loglevel=info",
+                "--concurrency=1"
+            ],
+            "environment": [
+                {
+                    "name": "EMBEDDINGS_ENABLED",
+                    "value": "true"
+                },
+                {
+                    "name": "EMBEDDING_DIMENSIONS",
+                    "value": "768"
+                },
+                {
+                    "name": "EMBEDDING_BATCH_SIZE",
+                    "value": "16"
+                },
+                {
+                    "name": "RESUME_CHUNK_MAX_CHARS",
+                    "value": "1800"
+                },
+                {
+                    "name": "CELERY_BROKER_URL",
+                    "value": "rediss://midas-redis-xhvgo3.serverless.use2.cache.amazonaws.com:6379/0?ssl_cert_reqs=required"
+                },
+                {
+                    "name": "EMBEDDINGS_ASYNC_ENABLED",
+                    "value": "true"
+                },
+                {
+                    "name": "CELERY_RESULT_BACKEND",
+                    "value": "rediss://midas-redis-xhvgo3.serverless.use2.cache.amazonaws.com:6379/0?ssl_cert_reqs=required"
+                },
+                {
+                    "name": "DEBUG",
+                    "value": "false"
+                },
+                {
+                    "name": "EMBEDDING_MODEL",
+                    "value": "BAAI/bge-base-en-v1.5"
+                },
+                {
+                    "name": "MONGO_DB_NAME",
+                    "value": "midas"
+                },
+                {
+                    "name": "REDIS_URL",
+                    "value": "rediss://midas-redis-xhvgo3.serverless.use2.cache.amazonaws.com:6379/0?ssl_cert_reqs=required"
+                }
+            ],
+            "environmentFiles": [],
+            "mountPoints": [],
+            "volumesFrom": [],
+            "secrets": [
+                {
+                    "name": "MONGODB_URI",
+                    "valueFrom": "arn:aws:secretsmanager:us-east-2:568175862303:secret:midas-click-env-6sTWZE:MONGODB_URI::"
+                }
+            ],
+            "ulimits": [],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/midas-worker",
+                    "awslogs-create-group": "true",
+                    "awslogs-region": "us-east-2",
+                    "awslogs-stream-prefix": "ecs"
+                },
+                "secretOptions": []
+            },
+            "systemControls": []
+        }
+    ],
+    "family": "midas-worker",
+    "taskRoleArn": "arn:aws:iam::568175862303:role/midas-click-task-role",
+    "executionRoleArn": "arn:aws:iam::568175862303:role/ecsTaskExecutionRole",
+    "networkMode": "awsvpc",
+    "volumes": [],
+    "placementConstraints": [],
+    "runtimePlatform": {
+        "cpuArchitecture": "X86_64",
+        "operatingSystemFamily": "LINUX"
+    },
+    "requiresCompatibilities": [
+        "FARGATE"
+    ],
+    "cpu": "1024",
+    "memory": "2048",
+    "enableFaultInjection": false,
+    "tags": []
+}

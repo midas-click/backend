@@ -1,0 +1,127 @@
+{
+    "containerDefinitions": [
+        {
+            "name": "backend",
+            "image": "568175862303.dkr.ecr.us-east-2.amazonaws.com/midas-backend@sha256:7c30f185cfd01ad9cb112d43c9d35f71cb4f9af13083593146053f4481b25d88",
+            "cpu": 0,
+            "portMappings": [
+                {
+                    "containerPort": 8000,
+                    "hostPort": 8000,
+                    "protocol": "tcp",
+                    "name": "backend-8000-tcp",
+                    "appProtocol": "http"
+                }
+            ],
+            "essential": true,
+            "command": [
+                "uvicorn",
+                "app.main:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8000"
+            ],
+            "environment": [
+                {
+                    "name": "AWS_REGION",
+                    "value": "us-east-2"
+                },
+                {
+                    "name": "CLERK_JWKS_URL",
+                    "value": "https://ace-molly-26.clerk.accounts.dev/.well-known/jwks.json"
+                },
+                {
+                    "name": "CELERY_BROKER_URL",
+                    "value": "rediss://midas-redis-xhvgo3.serverless.use2.cache.amazonaws.com:6379/0?ssl_cert_reqs=required"
+                },
+                {
+                    "name": "EMBEDDINGS_ASYNC_ENABLED",
+                    "value": "true"
+                },
+                {
+                    "name": "CELERY_RESULT_BACKEND",
+                    "value": "rediss://midas-redis-xhvgo3.serverless.use2.cache.amazonaws.com:6379/0?ssl_cert_reqs=required"
+                },
+                {
+                    "name": "CORS_ORIGINS",
+                    "value": "https://movup.pro,https://www.movup.pro"
+                },
+                {
+                    "name": "S3_BUCKET_NAME",
+                    "value": "midas-click-resumes"
+                },
+                {
+                    "name": "DEBUG",
+                    "value": "false"
+                },
+                {
+                    "name": "CLERK_ISSUER",
+                    "value": "https://ace-molly-26.clerk.accounts.dev"
+                },
+                {
+                    "name": "LLM_BASE_URL",
+                    "value": "https://api.deepseek.com/v1"
+                },
+                {
+                    "name": "EMBEDDINGS_ENABLED",
+                    "value": "true"
+                },
+                {
+                    "name": "MONGO_DB_NAME",
+                    "value": "midas"
+                },
+                {
+                    "name": "LLM_MODEL",
+                    "value": "deepseek-chat"
+                },
+                {
+                    "name": "REDIS_URL",
+                    "value": "rediss://midas-redis-xhvgo3.serverless.use2.cache.amazonaws.com:6379/0?ssl_cert_reqs=required"
+                }
+            ],
+            "environmentFiles": [],
+            "mountPoints": [],
+            "volumesFrom": [],
+            "secrets": [
+                {
+                    "name": "LLM_API_KEY",
+                    "valueFrom": "arn:aws:secretsmanager:us-east-2:568175862303:secret:midas-click-env-6sTWZE:LLM_API_KEY::"
+                },
+                {
+                    "name": "MONGODB_URI",
+                    "valueFrom": "arn:aws:secretsmanager:us-east-2:568175862303:secret:midas-click-env-6sTWZE:MONGODB_URI::"
+                }
+            ],
+            "ulimits": [],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/midas-backend",
+                    "awslogs-create-group": "true",
+                    "awslogs-region": "us-east-2",
+                    "awslogs-stream-prefix": "ecs"
+                },
+                "secretOptions": []
+            },
+            "systemControls": []
+        }
+    ],
+    "family": "midas-backend",
+    "taskRoleArn": "arn:aws:iam::568175862303:role/midas-click-task-role",
+    "executionRoleArn": "arn:aws:iam::568175862303:role/ecsTaskExecutionRole",
+    "networkMode": "awsvpc",
+    "volumes": [],
+    "placementConstraints": [],
+    "runtimePlatform": {
+        "cpuArchitecture": "X86_64",
+        "operatingSystemFamily": "LINUX"
+    },
+    "requiresCompatibilities": [
+        "FARGATE"
+    ],
+    "cpu": "512",
+    "memory": "1024",
+    "enableFaultInjection": false,
+    "tags": []
+}
