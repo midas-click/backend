@@ -14,7 +14,10 @@
                 "app.worker.celery_app:celery_app",
                 "worker",
                 "--loglevel=info",
-                "--concurrency=1"
+                "--concurrency=1",
+                "--without-mingle",
+                "--without-gossip",
+                "--without-heartbeat"
             ],
             "environment": [
                 {
