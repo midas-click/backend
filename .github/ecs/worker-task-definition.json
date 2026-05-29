@@ -4,17 +4,11 @@
             "name": "worker",
             "image": "568175862303.dkr.ecr.us-east-2.amazonaws.com/midas-backend@sha256:7c30f185cfd01ad9cb112d43c9d35f71cb4f9af13083593146053f4481b25d88",
             "cpu": 0,
-            "portMappings": [
-                {
-                    "containerPort": 80,
-                    "hostPort": 80,
-                    "protocol": "tcp",
-                    "name": "worker-80-tcp",
-                    "appProtocol": "http"
-                }
-            ],
+            "portMappings": [],
             "essential": true,
             "command": [
+                "python",
+                "-m",
                 "celery",
                 "-A",
                 "app.worker.celery_app:celery_app",
@@ -50,10 +44,6 @@
                 {
                     "name": "CELERY_RESULT_BACKEND",
                     "value": "rediss://midas-redis-xhvgo3.serverless.use2.cache.amazonaws.com:6379/0?ssl_cert_reqs=required"
-                },
-                {
-                    "name": "DEBUG",
-                    "value": "false"
                 },
                 {
                     "name": "EMBEDDING_MODEL",
