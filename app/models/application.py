@@ -1,6 +1,6 @@
 """Application model — the core ATS entity."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 
 from beanie import Document
@@ -22,14 +22,14 @@ class ApplicationStage(str, Enum):
 
 # ── Embedded sub-documents ───────────────────
 class CommunicationLog(BaseModel):
-    date: datetime = Field(default_factory=datetime.utcnow)
+    date: datetime = Field(default_factory=lambda: datetime.now(UTC))
     channel: str = "email"  # email | phone | linkedin | in_person
     summary: str
     raw_content: str | None = None
 
 
 class TimelineEvent(BaseModel):
-    date: datetime = Field(default_factory=datetime.utcnow)
+    date: datetime = Field(default_factory=lambda: datetime.now(UTC))
     event: str  # e.g. "Applied", "Phone screen scheduled"
     detail: str | None = None
 
@@ -64,8 +64,8 @@ class ApplicationDocument(Document, MidasDocument):
     follow_up_date: datetime | None = None
     notes: str | None = None
 
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     class Settings:
         name = "applications"

@@ -1,6 +1,6 @@
 """Vector-searchable resume chunks derived from parsed resume sections."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from beanie import Document
 from pydantic import Field
@@ -20,7 +20,7 @@ class ResumeChunkDocument(Document, MidasDocument):
     embedding: list[float]
     embedding_model: str
     embedding_dimensions: int
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     class Settings:
         name = "resume_chunks"

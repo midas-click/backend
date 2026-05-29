@@ -1,6 +1,6 @@
 """Job model — manually entered jobs or bookmarked listings."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from beanie import Document
 from pydantic import BaseModel, Field
@@ -31,7 +31,7 @@ class JobDocument(Document, MidasDocument):
     embedding_error: str | None = None
     embedded_at: datetime | None = None
 
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     class Settings:
         name = "jobs"

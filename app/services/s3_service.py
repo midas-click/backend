@@ -1,13 +1,13 @@
 """S3 service — pre-signed upload/download URLs."""
 
-from typing import Optional
+from typing import Any
 
 import boto3
 from botocore.config import Config
 
 from app.config import settings
 
-_s3_client: Optional["boto3.client"] = None
+_s3_client: Any = None
 
 
 def _get_client():

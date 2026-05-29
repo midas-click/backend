@@ -1,12 +1,11 @@
 """Resume parsing — extract text + sections from PDF/DOCX via pdfplumber & python-docx."""
 
 from io import BytesIO
-from typing import List
 
 from app.models.resume import ResumeSection
 
 
-async def parse_resume_bytes(filename: str, content: bytes) -> tuple[str, List[ResumeSection]]:
+async def parse_resume_bytes(filename: str, content: bytes) -> tuple[str, list[ResumeSection]]:
     """Parse resume file bytes and return raw text + structured sections."""
     ext = filename.rsplit(".", 1)[-1].lower()
 
@@ -21,7 +20,7 @@ async def parse_resume_bytes(filename: str, content: bytes) -> tuple[str, List[R
         raise ValueError(f"Unsupported file type: .{ext}")
 
 
-def _parse_pdf(content: bytes) -> tuple[str, List[ResumeSection]]:
+def _parse_pdf(content: bytes) -> tuple[str, list[ResumeSection]]:
     import pdfplumber
 
     full_text_parts = []
@@ -36,7 +35,7 @@ def _parse_pdf(content: bytes) -> tuple[str, List[ResumeSection]]:
     return full_text, sections
 
 
-def _parse_docx(content: bytes) -> tuple[str, List[ResumeSection]]:
+def _parse_docx(content: bytes) -> tuple[str, list[ResumeSection]]:
     from docx import Document
 
     doc = Document(BytesIO(content))
@@ -46,12 +45,12 @@ def _parse_docx(content: bytes) -> tuple[str, List[ResumeSection]]:
     return full_text, sections
 
 
-def _segment_sections(text: str) -> List[ResumeSection]:
+def _segment_sections(text: str) -> list[ResumeSection]:
     """Naive section splitter — looks for ALL_CAPS or Title-Case headings."""
     lines = text.split("\n")
-    sections: List[ResumeSection] = []
+    sections: list[ResumeSection] = []
     current_heading = "Header"
-    current_lines: List[str] = []
+    current_lines: list[str] = []
 
     # Heuristic: line is a heading if it's short (<60 chars), may be ALL CAPS or Title Case
     def is_heading(line: str) -> bool:

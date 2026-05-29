@@ -1,9 +1,8 @@
 """Jobs API — public listing, authenticated creation/management with role-based access."""
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from time import perf_counter
-from typing import Optional
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -70,13 +69,13 @@ def _duplicate_source_url_error() -> HTTPException:
 # ── LIST (public) ────────────────────────────────
 @router.get("/jobs", response_model=JobListResponse)
 async def list_jobs(
-    tag: Optional[str] = None,
-    search: Optional[str] = None,
+    tag: str | None = None,
+    search: str | None = None,
     creator: str = Query(default="all", pattern="^(all|me|org)$"),
-    cursor: Optional[str] = None,
+    cursor: str | None = None,
     limit: int = Query(default=25, ge=1, le=100),
-    profile_id: Optional[str] = Depends(get_current_profile_id),
-    auth_ctx: Optional[dict] = Depends(get_optional_auth_context),
+    profile_id: str | None = Depends(get_current_profile_id),
+    auth_ctx: dict | None = Depends(get_optional_auth_context),
 ):
     """List jobs — publicly accessible, no auth required.
 
@@ -282,7 +281,7 @@ async def _find_job_list_items(
 
 
 async def _get_recent_applied_job_object_ids(profile_id: str) -> list[ObjectId]:
-    since = datetime.utcnow() - timedelta(days=3)
+    since = datetime.now(UTC) - timedelta(days=3)
     cursor = ApplicationDocument.get_motor_collection().find({
         "profile_id": profile_id,
         "created_at": {"$gte": since},

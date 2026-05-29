@@ -21,7 +21,7 @@ def encode_cursor(item: object, sort_field: str) -> str:
     sort_value = getattr(item, sort_field)
     payload = {
         sort_field: sort_value.isoformat(),
-        "id": str(getattr(item, "id")),
+        "id": str(item.id),
     }
     return base64.urlsafe_b64encode(json.dumps(payload).encode()).decode()
 

@@ -26,6 +26,16 @@ AuthContext = Annotated[dict, Depends(get_auth_context)]
 ResumeUploadFile = Annotated[UploadFile, File(...)]
 
 
+def _require_resume(resume: ResumeDocument | None, ctx: dict) -> ResumeDocument:
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found")
+    if resume.org_id != ctx["org_id"]:
+        raise HTTPException(status_code=404, detail="Resume not found")
+    if ctx["profile_id"] and resume.profile_id != ctx["profile_id"]:
+        raise HTTPException(status_code=404, detail="Resume not found")
+    return resume
+
+
 # ── PRE-SIGNED UPLOAD URL ─────────────────────────
 @router.post("/resumes/upload-url")
 async def get_upload_url(filename: str, ctx: AuthContext, content_type: str = "application/pdf"):
@@ -131,13 +141,7 @@ async def list_resumes(ctx: AuthContext):
 # ── GET ───────────────────────────────────────────
 @router.get("/resumes/{resume_id}")
 async def get_resume(resume_id: str, ctx: AuthContext):
-    resume = await ResumeDocument.get(resume_id)
-    if not resume:
-        raise HTTPException(status_code=404, detail="Resume not found")
-    if resume.org_id != ctx["org_id"]:
-        raise HTTPException(status_code=404, detail="Resume not found")
-    if ctx["profile_id"] and resume.profile_id != ctx["profile_id"]:
-        raise HTTPException(status_code=404, detail="Resume not found")
+    resume = _require_resume(await ResumeDocument.get(resume_id), ctx)
 
     # Compute live stats
     pipeline = [
@@ -177,13 +181,7 @@ class ResumeUpdate(BaseModel):
 
 @router.patch("/resumes/{resume_id}", response_model=ResumeDocument)
 async def update_resume(resume_id: str, payload: ResumeUpdate, ctx: AuthContext):
-    resume = await ResumeDocument.get(resume_id)
-    if not resume:
-        raise HTTPException(status_code=404, detail="Resume not found")
-    if resume.org_id != ctx["org_id"]:
-        raise HTTPException(status_code=404, detail="Resume not found")
-    if ctx["profile_id"] and resume.profile_id != ctx["profile_id"]:
-        raise HTTPException(status_code=404, detail="Resume not found")
+    resume = _require_resume(await ResumeDocument.get(resume_id), ctx)
     if payload.tags is not None:
         resume.tags = payload.tags
     return await resume.save()
@@ -192,12 +190,6 @@ async def update_resume(resume_id: str, payload: ResumeUpdate, ctx: AuthContext)
 # ── DELETE ────────────────────────────────────────
 @router.delete("/resumes/{resume_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_resume(resume_id: str, ctx: AuthContext):
-    resume = await ResumeDocument.get(resume_id)
-    if not resume:
-        raise HTTPException(status_code=404, detail="Resume not found")
-    if resume.org_id != ctx["org_id"]:
-        raise HTTPException(status_code=404, detail="Resume not found")
-    if ctx["profile_id"] and resume.profile_id != ctx["profile_id"]:
-        raise HTTPException(status_code=404, detail="Resume not found")
+    resume = _require_resume(await ResumeDocument.get(resume_id), ctx)
     await delete_resume_chunks(resume_id)
     await resume.delete()

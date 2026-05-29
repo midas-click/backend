@@ -1,7 +1,7 @@
 """Queue embedding jobs without blocking API requests."""
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 
 from app.config import settings
@@ -40,7 +40,7 @@ async def mark_embedding_status(
     owner.embedding_status = status
     owner.embedding_error = error
     if status == "completed":
-        owner.embedded_at = datetime.utcnow()
+        owner.embedded_at = datetime.now(UTC)
     elif status in {"pending", "processing", "failed", "disabled"}:
         owner.embedded_at = None
     return await owner.save()

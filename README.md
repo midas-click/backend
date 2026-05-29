@@ -15,10 +15,10 @@ FastAPI API for job capture, resume parsing, application tracking, analytics, an
 
 ## Environment
 
-The backend reads settings from the repository root `.env` file via `backend/app/config.py`.
+The backend reads settings from this directory's `.env` file via `app/config.py`.
 
 ```powershell
-Copy-Item .env.example.backend .env
+Copy-Item .env.example .env
 ```
 
 Required for normal local development:

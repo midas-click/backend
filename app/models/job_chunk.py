@@ -1,6 +1,6 @@
 """Vector-searchable job chunks derived from saved job descriptions."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from beanie import Document
 from pydantic import Field
@@ -18,7 +18,7 @@ class JobChunkDocument(Document, MidasDocument):
     embedding: list[float]
     embedding_model: str
     embedding_dimensions: int
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     class Settings:
         name = "job_chunks"

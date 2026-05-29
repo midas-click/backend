@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -9,7 +9,7 @@ from app.api.pagination import add_cursor_filter, build_cursor_page, decode_curs
 
 # Encodes and decodes a cursor without losing the sort timestamp or document id.
 def test_cursor_round_trip_preserves_sort_value_and_id():
-    item = SimpleNamespace(id=ObjectId(), updated_at=datetime.utcnow())
+    item = SimpleNamespace(id=ObjectId(), updated_at=datetime.now(UTC))
 
     cursor = encode_cursor(item, "updated_at")
     sort_value, item_id = decode_cursor(cursor, "updated_at")
@@ -26,7 +26,7 @@ def test_decode_cursor_rejects_invalid_payload():
 
 # Adds the expected keyset pagination filter for descending timestamp/id ordering.
 def test_add_cursor_filter_appends_keyset_filter():
-    item = SimpleNamespace(id=ObjectId(), updated_at=datetime.utcnow())
+    item = SimpleNamespace(id=ObjectId(), updated_at=datetime.now(UTC))
     filters = {"org_id": "org_1"}
 
     add_cursor_filter(filters, encode_cursor(item, "updated_at"), "updated_at")
@@ -42,8 +42,8 @@ def test_add_cursor_filter_appends_keyset_filter():
 
 # Returns a next cursor only when one extra item proves another page exists.
 def test_build_cursor_page_trims_extra_item_and_sets_next_cursor():
-    first = SimpleNamespace(id=ObjectId(), created_at=datetime.utcnow())
-    second = SimpleNamespace(id=ObjectId(), created_at=datetime.utcnow() - timedelta(minutes=1))
+    first = SimpleNamespace(id=ObjectId(), created_at=datetime.now(UTC))
+    second = SimpleNamespace(id=ObjectId(), created_at=datetime.now(UTC) - timedelta(minutes=1))
 
     page = build_cursor_page([first, second], limit=1, sort_field="created_at")
 
@@ -54,7 +54,7 @@ def test_build_cursor_page_trims_extra_item_and_sets_next_cursor():
 
 # Leaves next cursor empty on the last page.
 def test_build_cursor_page_has_no_cursor_when_page_is_complete():
-    item = SimpleNamespace(id=ObjectId(), created_at=datetime.utcnow())
+    item = SimpleNamespace(id=ObjectId(), created_at=datetime.now(UTC))
 
     page = build_cursor_page([item], limit=10, sort_field="created_at")
 

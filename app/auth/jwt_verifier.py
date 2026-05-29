@@ -2,8 +2,8 @@
 
 import asyncio
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 from jose import jwk, jwt
@@ -14,16 +14,16 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 _jwks_lock = asyncio.Lock()
-_jwks_cache: Optional[Dict[str, Any]] = None
-_jwks_cached_at: Optional[datetime] = None
+_jwks_cache: dict[str, Any] | None = None
+_jwks_cached_at: datetime | None = None
 JWKS_CACHE_TTL_SECONDS = 3600  # 1 hour
 
 
-async def _fetch_jwks() -> Dict[str, Any]:
+async def _fetch_jwks() -> dict[str, Any]:
     """Fetch Clerk JWKS and return the parsed dict. Handles caching."""
     global _jwks_cache, _jwks_cached_at
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if (
         _jwks_cache is not None
         and _jwks_cached_at is not None
@@ -58,7 +58,7 @@ def _invalidate_jwks_cache() -> None:
     _jwks_cached_at = None
 
 
-async def verify_clerk_token(token: str) -> Dict[str, Any]:
+async def verify_clerk_token(token: str) -> dict[str, Any]:
     """Verify a Clerk-signed JWT and return the decoded claims.
 
     Raises:
@@ -71,7 +71,7 @@ async def verify_clerk_token(token: str) -> Dict[str, Any]:
     try:
         unverified_header = jwt.get_unverified_header(token)
     except JOSEError as e:
-        raise ValueError(f"Invalid JWT header: {e}")
+        raise ValueError(f"Invalid JWT header: {e}") from e
 
     kid = unverified_header.get("kid")
     if not kid:
@@ -94,7 +94,7 @@ async def verify_clerk_token(token: str) -> Dict[str, Any]:
     try:
         public_key = jwk.construct(matching_key)
     except JOSEError as e:
-        raise ValueError(f"Failed to construct public key: {e}")
+        raise ValueError(f"Failed to construct public key: {e}") from e
 
     try:
         claims = jwt.decode(
@@ -103,12 +103,12 @@ async def verify_clerk_token(token: str) -> Dict[str, Any]:
             algorithms=["RS256"],
             options={"verify_aud": False},  # Clerk doesn't always set audience
         )
-    except ExpiredSignatureError:
-        raise ValueError("Token has expired")
+    except ExpiredSignatureError as e:
+        raise ValueError("Token has expired") from e
     except JWTClaimsError as e:
-        raise ValueError(f"Invalid JWT claims: {e}")
+        raise ValueError(f"Invalid JWT claims: {e}") from e
     except JWTError as e:
-        raise ValueError(f"JWT verification failed: {e}")
+        raise ValueError(f"JWT verification failed: {e}") from e
 
     # 4. Validate issuer (optional but recommended)
     if settings.CLERK_ISSUER:
@@ -122,7 +122,7 @@ async def verify_clerk_token(token: str) -> Dict[str, Any]:
     return claims
 
 
-def _find_key(jwks: Dict[str, Any], kid: str) -> Optional[Dict[str, Any]]:
+def _find_key(jwks: dict[str, Any], kid: str) -> dict[str, Any] | None:
     """Find a JWKS key by kid."""
     for key in jwks.get("keys", []):
         if key.get("kid") == kid:

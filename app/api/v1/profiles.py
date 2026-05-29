@@ -1,6 +1,5 @@
 """Profiles API — CRUD for user-created sub-accounts within a team."""
 
-from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -10,8 +9,16 @@ from app.models.profile import ProfileCreate, ProfileDocument, ProfileUpdate
 router = APIRouter(tags=["Profiles"])
 
 
+def _require_profile(profile: ProfileDocument | None, ctx: dict) -> ProfileDocument:
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    if profile.org_id != ctx["org_id"]:
+        raise HTTPException(status_code=403, detail="Profile does not belong to this organization")
+    return profile
+
+
 # ── LIST ──────────────────────────────────────────
-@router.get("/profiles", response_model=List[ProfileDocument])
+@router.get("/profiles", response_model=list[ProfileDocument])
 async def list_profiles(ctx: dict = Depends(get_auth_context)):
     """List all profiles for the current user in the active organization."""
     return (
@@ -27,12 +34,7 @@ async def list_profiles(ctx: dict = Depends(get_auth_context)):
 # ── GET ───────────────────────────────────────────
 @router.get("/profiles/{profile_id}", response_model=ProfileDocument)
 async def get_profile(profile_id: str, ctx: dict = Depends(get_auth_context)):
-    profile = await ProfileDocument.get(profile_id)
-    if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
-    if profile.org_id != ctx["org_id"]:
-        raise HTTPException(status_code=403, detail="Profile does not belong to this organization")
-    return profile
+    return _require_profile(await ProfileDocument.get(profile_id), ctx)
 
 
 # ── CREATE ────────────────────────────────────────
@@ -62,11 +64,7 @@ async def update_profile(
     payload: ProfileUpdate,
     ctx: dict = Depends(get_auth_context),
 ):
-    profile = await ProfileDocument.get(profile_id)
-    if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
-    if profile.org_id != ctx["org_id"]:
-        raise HTTPException(status_code=403, detail="Profile does not belong to this organization")
+    profile = _require_profile(await ProfileDocument.get(profile_id), ctx)
     if profile.user_id != ctx["user_id"] and ctx["org_role"] not in ("org:admin", "org:manager"):
         raise HTTPException(status_code=403, detail="Cannot edit another user's profile")
 
@@ -78,11 +76,7 @@ async def update_profile(
 # ── DELETE ────────────────────────────────────────
 @router.delete("/profiles/{profile_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_profile(profile_id: str, ctx: dict = Depends(get_auth_context)):
-    profile = await ProfileDocument.get(profile_id)
-    if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
-    if profile.org_id != ctx["org_id"]:
-        raise HTTPException(status_code=403, detail="Profile does not belong to this organization")
+    profile = _require_profile(await ProfileDocument.get(profile_id), ctx)
     if profile.user_id != ctx["user_id"] and ctx["org_role"] not in ("org:admin", "org:manager"):
         raise HTTPException(status_code=403, detail="Cannot delete another user's profile")
     await profile.delete()

@@ -1,0 +1,24 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "FastAPI API for job capture, resume parsing, application tracking, analytics, and resume/job matching.",
+  "scripts": {
+    "prepare": "husky",
+    "test": "node scripts/run-pytest.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/midas-click/backend.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/midas-click/backend/issues"
+  },
+  "homepage": "https://github.com/midas-click/backend#readme",
+  "devDependencies": {
+    "husky": "^9.1.7"
+  }
+}

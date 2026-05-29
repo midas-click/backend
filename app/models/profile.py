@@ -1,7 +1,6 @@
 """Profile model — user-defined sub-accounts within a team."""
 
-from datetime import datetime
-from typing import Optional
+from datetime import UTC, datetime
 
 from beanie import Document
 from pydantic import BaseModel, Field
@@ -19,10 +18,10 @@ class ProfileDocument(Document, MidasDocument):
     user_id: str                          # Clerk user ID (sub claim)
     org_id: str                          # Clerk organization ID (org_id claim)
     name: str
-    email: Optional[str] = None
-    headline: Optional[str] = None
+    email: str | None = None
+    headline: str | None = None
     is_active: bool = True
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     class Settings:
         name = "profiles"
@@ -37,11 +36,11 @@ class ProfileDocument(Document, MidasDocument):
 
 class ProfileCreate(BaseModel):
     name: str
-    email: Optional[str] = None
-    headline: Optional[str] = None
+    email: str | None = None
+    headline: str | None = None
 
 
 class ProfileUpdate(BaseModel):
-    name: Optional[str] = None
-    headline: Optional[str] = None
-    is_active: Optional[bool] = None
+    name: str | None = None
+    headline: str | None = None
+    is_active: bool | None = None

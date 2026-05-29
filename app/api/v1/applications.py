@@ -1,7 +1,6 @@
 """Applications API — full CRUD + kanban stage management + communication logs."""
 
-from datetime import datetime
-from typing import Optional
+from datetime import UTC, datetime
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -29,14 +28,24 @@ router = APIRouter(tags=["Applications"])
 ApplicationListResponse = CursorPage[ApplicationDocument]
 
 
+def _require_application(app: ApplicationDocument | None, ctx: dict) -> ApplicationDocument:
+    if not app:
+        raise HTTPException(status_code=404, detail="Application not found")
+    if app.org_id != ctx["org_id"]:
+        raise HTTPException(status_code=404, detail="Application not found")
+    if ctx["profile_id"] and app.profile_id != ctx["profile_id"]:
+        raise HTTPException(status_code=404, detail="Application not found")
+    return app
+
+
 # ── LIST ──────────────────────────────────────────
 @router.get("/applications", response_model=ApplicationListResponse)
 async def list_applications(
-    stage: Optional[str] = None,
-    tag: Optional[str] = None,
-    company: Optional[str] = None,
-    search: Optional[str] = None,
-    cursor: Optional[str] = None,
+    stage: str | None = None,
+    tag: str | None = None,
+    company: str | None = None,
+    search: str | None = None,
+    cursor: str | None = None,
     limit: int = Query(default=25, ge=1, le=100),
     ctx: dict = Depends(get_auth_context),
 ):
@@ -73,14 +82,7 @@ async def list_applications(
 # ── GET ───────────────────────────────────────────
 @router.get("/applications/{app_id}", response_model=ApplicationDocument)
 async def get_application(app_id: str, ctx: dict = Depends(get_auth_context)):
-    app = await ApplicationDocument.get(app_id)
-    if not app:
-        raise HTTPException(status_code=404, detail="Application not found")
-    if app.org_id != ctx["org_id"]:
-        raise HTTPException(status_code=404, detail="Application not found")
-    if ctx["profile_id"] and app.profile_id != ctx["profile_id"]:
-        raise HTTPException(status_code=404, detail="Application not found")
-    return app
+    return _require_application(await ApplicationDocument.get(app_id), ctx)
 
 
 # ── CREATE ────────────────────────────────────────
@@ -175,13 +177,7 @@ async def create_applications_batch(payload: ApplicationBatchCreate, ctx: dict =
 # ── UPDATE ────────────────────────────────────────
 @router.patch("/applications/{app_id}", response_model=ApplicationDocument)
 async def update_application(app_id: str, payload: ApplicationUpdate, ctx: dict = Depends(get_auth_context)):
-    app = await ApplicationDocument.get(app_id)
-    if not app:
-        raise HTTPException(status_code=404, detail="Application not found")
-    if app.org_id != ctx["org_id"]:
-        raise HTTPException(status_code=404, detail="Application not found")
-    if ctx["profile_id"] and app.profile_id != ctx["profile_id"]:
-        raise HTTPException(status_code=404, detail="Application not found")
+    app = _require_application(await ApplicationDocument.get(app_id), ctx)
 
     update_data = payload.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -192,33 +188,21 @@ async def update_application(app_id: str, payload: ApplicationUpdate, ctx: dict 
         resume = await ResumeDocument.get(app.resume_id) if app.resume_id else None
         app.resume_filename = resume.original_filename if resume else None
 
-    app.updated_at = datetime.utcnow()
+    app.updated_at = datetime.now(UTC)
     return await app.save()
 
 
 # ── DELETE ────────────────────────────────────────
 @router.delete("/applications/{app_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_application(app_id: str, ctx: dict = Depends(get_auth_context)):
-    app = await ApplicationDocument.get(app_id)
-    if not app:
-        raise HTTPException(status_code=404, detail="Application not found")
-    if app.org_id != ctx["org_id"]:
-        raise HTTPException(status_code=404, detail="Application not found")
-    if ctx["profile_id"] and app.profile_id != ctx["profile_id"]:
-        raise HTTPException(status_code=404, detail="Application not found")
+    app = _require_application(await ApplicationDocument.get(app_id), ctx)
     await app.delete()
 
 
 # ── MOVE STAGE (Kanban) ───────────────────────────
 @router.patch("/applications/{app_id}/stage", response_model=ApplicationDocument)
 async def move_stage(app_id: str, payload: StageChange, ctx: dict = Depends(get_auth_context)):
-    app = await ApplicationDocument.get(app_id)
-    if not app:
-        raise HTTPException(status_code=404, detail="Application not found")
-    if app.org_id != ctx["org_id"]:
-        raise HTTPException(status_code=404, detail="Application not found")
-    if ctx["profile_id"] and app.profile_id != ctx["profile_id"]:
-        raise HTTPException(status_code=404, detail="Application not found")
+    app = _require_application(await ApplicationDocument.get(app_id), ctx)
 
     old_stage = app.stage
     app.stage = payload.stage
@@ -226,25 +210,19 @@ async def move_stage(app_id: str, payload: StageChange, ctx: dict = Depends(get_
         event=f"Moved: {old_stage} → {payload.stage}",
         detail=payload.detail,
     ))
-    app.updated_at = datetime.utcnow()
+    app.updated_at = datetime.now(UTC)
     return await app.save()
 
 
 # ── COMMUNICATION LOGS ────────────────────────────
 @router.post("/applications/{app_id}/communications", response_model=ApplicationDocument)
 async def add_communication(app_id: str, payload: CommunicationCreate, ctx: dict = Depends(get_auth_context)):
-    app = await ApplicationDocument.get(app_id)
-    if not app:
-        raise HTTPException(status_code=404, detail="Application not found")
-    if app.org_id != ctx["org_id"]:
-        raise HTTPException(status_code=404, detail="Application not found")
-    if ctx["profile_id"] and app.profile_id != ctx["profile_id"]:
-        raise HTTPException(status_code=404, detail="Application not found")
+    app = _require_application(await ApplicationDocument.get(app_id), ctx)
 
     app.communication_log.append(CommunicationLog(**payload.model_dump()))
     app.timeline.append(TimelineEvent(
         event=f"Communication: {payload.channel}",
         detail=payload.summary,
     ))
-    app.updated_at = datetime.utcnow()
+    app.updated_at = datetime.now(UTC)
     return await app.save()

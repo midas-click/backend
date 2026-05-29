@@ -1,14 +1,14 @@
 """Analytics service — MongoDB aggregation pipelines for dashboard insights."""
 
-from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from app.models.application import ApplicationDocument
 from app.models.job import JobDocument
 from app.models.resume import ResumeDocument
 
 
-def _scope_filter(org_id: str, profile_id: Optional[str]) -> dict:
+def _scope_filter(org_id: str, profile_id: str | None) -> dict:
     """Build a base match filter for the given scope."""
     f: dict = {"org_id": org_id}
     if profile_id:
@@ -18,13 +18,13 @@ def _scope_filter(org_id: str, profile_id: Optional[str]) -> dict:
 
 async def get_overview_metrics(
     org_id: str,
-    profile_id: Optional[str] = None,
-) -> Dict[str, Any]:
+    profile_id: str | None = None,
+) -> dict[str, Any]:
     """Return high-level KPIs: totals, conversion rates, stage distribution."""
     base_filter = _scope_filter(org_id, profile_id)
 
     # Compute date boundaries for this-month filter
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     since_24h = now - timedelta(hours=24)
     since_month = datetime(now.year, now.month, 1)
 
@@ -95,8 +95,8 @@ async def get_overview_metrics(
 
 async def get_resume_performance(
     org_id: str,
-    profile_id: Optional[str] = None,
-) -> list[Dict[str, Any]]:
+    profile_id: str | None = None,
+) -> list[dict[str, Any]]:
     """Return how each resume version has performed (app count, interview count)."""
     resume_filter = {"org_id": org_id}
     if profile_id:
@@ -148,8 +148,8 @@ async def get_resume_performance(
 
 async def get_industry_trends(
     org_id: str,
-    profile_id: Optional[str] = None,
-) -> list[Dict[str, Any]]:
+    profile_id: str | None = None,
+) -> list[dict[str, Any]]:
     """Group by tag (industry/tech stack) and show success rates."""
     base_filter = _scope_filter(org_id, profile_id)
 
@@ -189,7 +189,7 @@ async def get_industry_trends(
     ]
 
 
-def _empty_overview() -> Dict[str, Any]:
+def _empty_overview() -> dict[str, Any]:
     return {
         "total_applications": 0,
         "interview_rate": 0,

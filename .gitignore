@@ -12,6 +12,11 @@ venv/
 .env
 .env.*
 !.env.example
+!.env.backend.example
+!.env.worker.example
+
+# Node / Husky
+node_modules/
 
 # IDE
 .vscode/

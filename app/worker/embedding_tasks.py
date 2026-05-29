@@ -2,8 +2,8 @@
 
 import asyncio
 import logging
+from collections.abc import Awaitable
 from time import perf_counter
-from typing import Awaitable
 
 from celery import signals
 from celery.exceptions import Retry

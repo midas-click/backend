@@ -19,16 +19,7 @@ class Settings(BaseSettings):
     )
 
     # ── App ──────────────────────────────────
-    APP_ENV: str = "development"
-    DEBUG: bool = True
     CORS_ORIGINS: str = "http://localhost:5173"
-
-    @field_validator("DEBUG", mode="before")
-    @classmethod
-    def parse_debug(cls, value: object) -> object:
-        if isinstance(value, str) and value.lower() in {"release", "prod", "production"}:
-            return False
-        return value
 
     @field_validator("EMBEDDING_THREADS", mode="before")
     @classmethod
@@ -52,8 +43,6 @@ class Settings(BaseSettings):
     S3_BUCKET_NAME: str = "midas-click-resumes"
 
     # ── Clerk Auth ────────────────────────────
-    CLERK_SECRET_KEY: str = ""
-    CLERK_PUBLISHABLE_KEY: str = ""
     CLERK_JWKS_URL: str = ""
     CLERK_ISSUER: str = ""
 
