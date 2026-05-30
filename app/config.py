@@ -61,18 +61,33 @@ class Settings(BaseSettings):
     EMBEDDING_CACHE_DIR: str = ""
     RESUME_CHUNK_MAX_CHARS: int = 1800
 
-    # ── Background jobs ──────────────────────
-    REDIS_URL: str = "redis://localhost:6379/0"
-    CELERY_BROKER_URL: str = ""
-    CELERY_RESULT_BACKEND: str = ""
+    # ── Background jobs / SQS ────────────────
+    CELERY_BROKER_URL: str = "sqs://"
+    CELERY_TASK_DEFAULT_QUEUE: str = "midas-celery"
+    SQS_QUEUE_URL: str = ""
+    SQS_VISIBILITY_TIMEOUT: int = 3600
+    SQS_WAIT_TIME_SECONDS: int = 20
+    SQS_POLLING_INTERVAL: int = 1
 
     @property
     def celery_broker_url(self) -> str:
-        return self.CELERY_BROKER_URL or self.REDIS_URL
+        return self.CELERY_BROKER_URL or "sqs://"
 
     @property
-    def celery_result_backend(self) -> str:
-        return self.CELERY_RESULT_BACKEND or self.REDIS_URL
+    def celery_broker_transport_options(self) -> dict:
+        options = {
+            "region": self.AWS_REGION,
+            "visibility_timeout": self.SQS_VISIBILITY_TIMEOUT,
+            "wait_time_seconds": self.SQS_WAIT_TIME_SECONDS,
+            "polling_interval": self.SQS_POLLING_INTERVAL,
+        }
+        if self.SQS_QUEUE_URL:
+            options["predefined_queues"] = {
+                self.CELERY_TASK_DEFAULT_QUEUE: {
+                    "url": self.SQS_QUEUE_URL,
+                },
+            }
+        return options
 
 
 settings = Settings()

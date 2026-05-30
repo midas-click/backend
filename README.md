@@ -7,7 +7,7 @@ FastAPI API for job capture, resume parsing, application tracking, analytics, an
 - Python 3.12+
 - FastAPI + Uvicorn
 - MongoDB with Beanie/Motor
-- Redis + Celery for background embedding jobs
+- Amazon SQS + Celery for background embedding jobs
 - AWS S3 for resume file storage
 - Clerk JWT verification
 - OpenAI-compatible LLM client for job extraction
@@ -35,12 +35,16 @@ S3_BUCKET_NAME=
 CORS_ORIGINS=http://localhost:5173
 ```
 
-For background embeddings, Redis/Celery use:
+For background embeddings, SQS/Celery use:
 
 ```env
-REDIS_URL=redis://localhost:6379/0
-CELERY_BROKER_URL=redis://localhost:6379/0
-CELERY_RESULT_BACKEND=redis://localhost:6379/0
+AWS_REGION=us-east-2
+CELERY_BROKER_URL=sqs://
+CELERY_TASK_DEFAULT_QUEUE=midas-celery
+SQS_QUEUE_URL=https://sqs.us-east-2.amazonaws.com/123456789012/midas-celery
+SQS_VISIBILITY_TIMEOUT=3600
+SQS_WAIT_TIME_SECONDS=20
+SQS_POLLING_INTERVAL=1
 EMBEDDINGS_ENABLED=true
 EMBEDDINGS_ASYNC_ENABLED=true
 ```
@@ -70,11 +74,7 @@ http://localhost:8000/health
 
 ## Background Worker
 
-Start Redis from the repository root:
-
-```powershell
-docker compose up -d redis
-```
+Create an SQS queue named `midas-celery`, then set `SQS_QUEUE_URL` for both the API and worker environments.
 
 Run Celery from `backend/`:
 
@@ -86,6 +86,17 @@ On Linux/macOS, this also works:
 
 ```bash
 celery -A app.worker.celery_app:celery_app worker --loglevel=info --concurrency=1
+```
+
+In ECS, grant the task role SQS permissions for the queue:
+
+```text
+sqs:GetQueueUrl
+sqs:GetQueueAttributes
+sqs:SendMessage
+sqs:ReceiveMessage
+sqs:DeleteMessage
+sqs:ChangeMessageVisibility
 ```
 
 ## Database Indexes

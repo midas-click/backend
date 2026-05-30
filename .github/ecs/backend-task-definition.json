@@ -33,15 +33,15 @@
                 },
                 {
                     "name": "CELERY_BROKER_URL",
-                    "value": "rediss://midas-redis-xhvgo3.serverless.use2.cache.amazonaws.com:6379/0?ssl_cert_reqs=required"
+                    "value": "sqs://"
                 },
                 {
                     "name": "EMBEDDINGS_ASYNC_ENABLED",
                     "value": "true"
                 },
                 {
-                    "name": "CELERY_RESULT_BACKEND",
-                    "value": "rediss://midas-redis-xhvgo3.serverless.use2.cache.amazonaws.com:6379/0?ssl_cert_reqs=required"
+                    "name": "CELERY_TASK_DEFAULT_QUEUE",
+                    "value": "midas-celery"
                 },
                 {
                     "name": "CORS_ORIGINS",
@@ -72,8 +72,20 @@
                     "value": "deepseek-chat"
                 },
                 {
-                    "name": "REDIS_URL",
-                    "value": "rediss://midas-redis-xhvgo3.serverless.use2.cache.amazonaws.com:6379/0?ssl_cert_reqs=required"
+                    "name": "SQS_QUEUE_URL",
+                    "value": "https://sqs.us-east-2.amazonaws.com/568175862303/midas-celery"
+                },
+                {
+                    "name": "SQS_VISIBILITY_TIMEOUT",
+                    "value": "3600"
+                },
+                {
+                    "name": "SQS_WAIT_TIME_SECONDS",
+                    "value": "20"
+                },
+                {
+                    "name": "SQS_POLLING_INTERVAL",
+                    "value": "1"
                 }
             ],
             "environmentFiles": [],
