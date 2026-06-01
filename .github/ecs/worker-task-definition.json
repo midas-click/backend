@@ -2,7 +2,7 @@
     "containerDefinitions": [
         {
             "name": "worker",
-            "image": "568175862303.dkr.ecr.us-east-2.amazonaws.com/midas-backend:d95b69861f182de672450b46883f4ca6b766ac2e",
+            "image": "568175862303.dkr.ecr.us-east-2.amazonaws.com/midas-backend:caed0aae36df3ee6a69218f92b5f6a362892d5ef",
             "cpu": 0,
             "portMappings": [],
             "essential": true,
@@ -29,12 +29,12 @@
                     "value": "us-east-2"
                 },
                 {
-                    "name": "SQS_QUEUE_URL",
-                    "value": "https://sqs.us-east-2.amazonaws.com/568175862303/midas-celery"
-                },
-                {
                     "name": "PINECONE_INDEX_NAME",
                     "value": "midas-click"
+                },
+                {
+                    "name": "SQS_QUEUE_URL",
+                    "value": "https://sqs.us-east-2.amazonaws.com/568175862303/midas-celery"
                 },
                 {
                     "name": "EMBEDDING_BATCH_SIZE",
@@ -119,8 +119,8 @@
     "requiresCompatibilities": [
         "FARGATE"
     ],
-    "cpu": "1024",
-    "memory": "2048",
+    "cpu": "512",
+    "memory": "1024",
     "enableFaultInjection": false,
     "tags": []
 }
