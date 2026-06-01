@@ -4,53 +4,53 @@ import pytest
 
 from app.services import match_score_service
 from app.services.match_score_service import calculate_match_score, score_resumes_for_job
+from app.services.vector_store_service import StoredVector, VectorMatch
 
 
-class FakeFindResult:
-    def __init__(self, items):
-        self.items = items
-
-    async def to_list(self):
-        return self.items
-
-
-class FakeJobChunkDocument:
-    filters = []
-
+class FakeJobDocument:
     @classmethod
-    def find(cls, filters):
-        cls.filters.append(filters)
-        return FakeFindResult([
-            SimpleNamespace(embedding=[1.0, 0.0]),
-            SimpleNamespace(embedding=[0.0, 1.0]),
-        ])
-
-
-class FakeResumeChunkDocument:
-    @classmethod
-    def find(cls, filters):
-        return FakeFindResult([
-            SimpleNamespace(embedding=[1.0, 0.0]),
-            SimpleNamespace(embedding=[0.0, 1.0]),
-        ])
+    async def get(cls, job_id):
+        return SimpleNamespace(id=job_id, org_id="org_1", vector_chunk_count=2)
 
 
 @pytest.mark.asyncio
-async def test_calculate_match_score_uses_best_resume_chunks(monkeypatch):
-    FakeJobChunkDocument.filters = []
-    monkeypatch.setattr(match_score_service, "JobChunkDocument", FakeJobChunkDocument)
-    monkeypatch.setattr(match_score_service, "ResumeChunkDocument", FakeResumeChunkDocument)
+async def test_calculate_match_score_uses_pinecone_matches(monkeypatch):
+    queries = []
+    monkeypatch.setattr(match_score_service, "JobDocument", FakeJobDocument)
+    monkeypatch.setattr(
+        match_score_service,
+        "fetch_job_vectors",
+        lambda job: _async_value([
+            StoredVector(id="job:job_1:0", values=[1.0, 0.0], metadata={}),
+            StoredVector(id="job:job_1:1", values=[0.0, 1.0], metadata={}),
+        ]),
+    )
+
+    async def fake_query_resume_chunks(**kwargs):
+        queries.append(kwargs)
+        return [VectorMatch(id="resume:resume_1:0", score=1.0, metadata={"resume_id": "resume_1"})]
+
+    monkeypatch.setattr(match_score_service, "query_resume_chunks", fake_query_resume_chunks)
 
     score = await calculate_match_score("job_1", "resume_1", "org_1")
 
     assert score == 100.0
-    assert FakeJobChunkDocument.filters == [{"job_id": "job_1"}]
+    assert [query["resume_id"] for query in queries] == ["resume_1", "resume_1"]
 
 
 @pytest.mark.asyncio
 async def test_score_resumes_for_job_returns_resume_metadata(monkeypatch):
-    monkeypatch.setattr(match_score_service, "JobChunkDocument", FakeJobChunkDocument)
-    monkeypatch.setattr(match_score_service, "ResumeChunkDocument", FakeResumeChunkDocument)
+    monkeypatch.setattr(match_score_service, "JobDocument", FakeJobDocument)
+    monkeypatch.setattr(
+        match_score_service,
+        "fetch_job_vectors",
+        lambda job: _async_value([StoredVector(id="job:job_1:0", values=[1.0, 0.0], metadata={})]),
+    )
+    monkeypatch.setattr(
+        match_score_service,
+        "query_resume_chunks",
+        lambda **kwargs: _async_value([VectorMatch(id="resume:resume_1:0", score=1.0, metadata={})]),
+    )
     resumes = [
         SimpleNamespace(id="resume_1", original_filename="resume.pdf"),
     ]
@@ -60,3 +60,15 @@ async def test_score_resumes_for_job_returns_resume_metadata(monkeypatch):
     assert scores[0].resume_id == "resume_1"
     assert scores[0].resume_filename == "resume.pdf"
     assert scores[0].match_score == 100.0
+
+
+@pytest.mark.asyncio
+async def test_calculate_match_score_returns_none_without_job_vectors(monkeypatch):
+    monkeypatch.setattr(match_score_service, "JobDocument", FakeJobDocument)
+    monkeypatch.setattr(match_score_service, "fetch_job_vectors", lambda job: _async_value([]))
+
+    assert await calculate_match_score("job_1", "resume_1", "org_1") is None
+
+
+async def _async_value(value):
+    return value

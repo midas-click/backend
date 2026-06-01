@@ -8,6 +8,7 @@ FastAPI API for job capture, resume parsing, application tracking, analytics, an
 - FastAPI + Uvicorn
 - MongoDB with Beanie/Motor
 - Amazon SQS + Celery for background embedding jobs
+- Pinecone for vector chunk storage and similarity search
 - AWS S3 for resume file storage
 - Clerk JWT verification
 - OpenAI-compatible LLM client for job extraction
@@ -47,6 +48,12 @@ SQS_WAIT_TIME_SECONDS=20
 SQS_POLLING_INTERVAL=1
 EMBEDDINGS_ENABLED=true
 EMBEDDINGS_ASYNC_ENABLED=true
+VECTOR_STORE=pinecone
+PINECONE_API_KEY=
+PINECONE_INDEX_NAME=midas-vectors
+PINECONE_CLOUD=aws
+PINECONE_REGION=us-east-1
+PINECONE_TOP_K=10
 ```
 
 ## Run Locally
@@ -107,12 +114,12 @@ After changing indexes or setting up a new database:
 python scripts/sync_indexes.py
 ```
 
-Atlas Vector Search indexes are documented in:
+Vector chunks are stored in Pinecone. Existing MongoDB chunk data can be migrated with:
 
-- `scripts/resume_chunks_vector_index.json`
-- `scripts/job_chunks_vector_index.json`
-
-Create those manually in MongoDB Atlas when vector search is enabled.
+```powershell
+python scripts/backfill_pinecone_vectors.py --dry-run
+python scripts/backfill_pinecone_vectors.py
+```
 
 ## Tests
 
@@ -128,6 +135,7 @@ From `backend/`:
 - `app/models/` - Beanie documents and request/response models
 - `app/services/llm_service.py` - job field extraction
 - `app/services/embedding_service.py` - local embedding generation
+- `app/services/vector_store_service.py` - Pinecone vector storage/search
 - `app/services/match_score_service.py` - resume/job scoring
 - `app/worker/embedding_tasks.py` - Celery embedding tasks
 - `scripts/sync_indexes.py` - MongoDB index sync

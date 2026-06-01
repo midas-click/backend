@@ -4,18 +4,16 @@ import logging
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
 
 from app.auth.dependencies import get_auth_context
 from app.models.application import ApplicationDocument
 from app.models.resume import ResumeDocument
 from app.services.embedding_queue_service import enqueue_resume_embedding
-from app.services.resume_chunk_service import (
-    delete_resume_chunks,
-)
 from app.services.resume_parser import parse_resume_bytes
 from app.services.s3_service import generate_presigned_upload_url, upload_to_s3
+from app.services.vector_cleanup_queue_service import enqueue_resume_vector_cleanup
 
 logger = logging.getLogger(__name__)
 
@@ -189,7 +187,7 @@ async def update_resume(resume_id: str, payload: ResumeUpdate, ctx: AuthContext)
 
 # ── DELETE ────────────────────────────────────────
 @router.delete("/resumes/{resume_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_resume(resume_id: str, ctx: AuthContext):
+async def delete_resume(resume_id: str, background_tasks: BackgroundTasks, ctx: AuthContext):
     resume = _require_resume(await ResumeDocument.get(resume_id), ctx)
-    await delete_resume_chunks(resume_id)
     await resume.delete()
+    enqueue_resume_vector_cleanup(resume, background_tasks)

@@ -16,7 +16,6 @@ class JobDocument(Document, MidasDocument):
 
     title: str
     company: str
-    description: str | None = None
     location: str | None = None
     remote: bool | None = None
     salary_range: str | None = None
@@ -30,6 +29,8 @@ class JobDocument(Document, MidasDocument):
     embedding_status: str = Field(default="disabled")
     embedding_error: str | None = None
     embedded_at: datetime | None = None
+    vector_store: str | None = None
+    vector_chunk_count: int = 0
 
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
@@ -57,31 +58,9 @@ class JobDocument(Document, MidasDocument):
         ]
 
 
-class JobCreate(BaseModel):
-    title: str
-    company: str
-    description: str | None = None
-    location: str | None = None
-    remote: bool | None = None
-    salary_range: str | None = None
-    source_url: str | None = None
-    tags: list[str] = Field(default_factory=list)
-
-
 class JobAnalyzeRequest(BaseModel):
     raw_text: str
     source_url: str = ""
-
-
-class JobUpdate(BaseModel):
-    title: str | None = None
-    company: str | None = None
-    description: str | None = None
-    location: str | None = None
-    remote: bool | None = None
-    salary_range: str | None = None
-    source_url: str | None = None
-    tags: list[str] | None = None
 
 
 class JobListItem(BaseModel):
@@ -99,4 +78,6 @@ class JobListItem(BaseModel):
     embedding_status: str | None = None
     embedding_error: str | None = None
     embedded_at: datetime | None = None
+    vector_store: str | None = None
+    vector_chunk_count: int = 0
     created_at: datetime

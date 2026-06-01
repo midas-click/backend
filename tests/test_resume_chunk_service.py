@@ -29,53 +29,19 @@ def test_chunk_resume_sections_splits_long_sections():
 
 
 @pytest.mark.asyncio
-async def test_replace_resume_chunks_builds_documents(monkeypatch):
-    inserted = []
-    deleted_filters = []
+async def test_replace_resume_chunks_uses_vector_store(monkeypatch):
+    calls = []
+    vectors = [SimpleNamespace(id="resume:resume_1:0", values=[0.0, 0.0, 1.0], metadata={})]
 
-    async def fake_generate_embeddings(texts):
-        return [[float(index), 0.0, 1.0] for index, _ in enumerate(texts)]
+    async def fake_upsert_resume_chunks(resume, sections):
+        calls.append((resume, sections))
+        return vectors
 
-    class FakeFind:
-        async def delete(self):
-            deleted_filters.append("deleted")
+    monkeypatch.setattr(resume_chunk_service, "upsert_resume_chunks", fake_upsert_resume_chunks)
+    resume = SimpleNamespace(id="resume_1")
+    sections = [ResumeSection(title="Experience", content="Built APIs")]
 
-    class FakeResumeChunkDocument:
-        resume_id = "resume_id"
+    result = await replace_resume_chunks(resume, sections)
 
-        def __init__(self, **kwargs):
-            for key, value in kwargs.items():
-                setattr(self, key, value)
-
-        @classmethod
-        def find(cls, *args):
-            return FakeFind()
-
-        async def insert(self):
-            inserted.append(self)
-            return self
-
-    monkeypatch.setattr(resume_chunk_service, "generate_embeddings", fake_generate_embeddings)
-    monkeypatch.setattr(resume_chunk_service, "ResumeChunkDocument", FakeResumeChunkDocument)
-    monkeypatch.setattr(resume_chunk_service.settings, "EMBEDDING_MODEL", "test-model")
-    monkeypatch.setattr(resume_chunk_service.settings, "EMBEDDING_DIMENSIONS", 3)
-
-    resume = SimpleNamespace(
-        id="resume_1",
-        user_id="user_1",
-        org_id="org_1",
-        profile_id="profile_1",
-    )
-
-    docs = await replace_resume_chunks(
-        resume,
-        [ResumeSection(title="Experience", content="Built APIs")],
-    )
-
-    assert deleted_filters == ["deleted"]
-    assert docs == inserted
-    assert docs[0].resume_id == "resume_1"
-    assert docs[0].org_id == "org_1"
-    assert docs[0].profile_id == "profile_1"
-    assert docs[0].section_title == "Experience"
-    assert docs[0].embedding == [0.0, 0.0, 1.0]
+    assert result == vectors
+    assert calls == [(resume, sections)]

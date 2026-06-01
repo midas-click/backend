@@ -5,7 +5,7 @@ from bson import ObjectId
 from fastapi import HTTPException
 
 from app.api.v1 import jobs as jobs_api
-from app.models.job import JobAnalyzeRequest, JobCreate
+from app.models.job import JobAnalyzeRequest
 from app.services.job_page_validation_service import JobPageValidationResult
 
 
@@ -134,7 +134,7 @@ async def test_analyze_and_create_job_inserts_extracted_job_and_enqueues(monkeyp
             "tags": ["python"],
         }),
     )
-    monkeypatch.setattr(jobs_api, "enqueue_job_embedding", lambda job: _async_append(enqueued, job))
+    monkeypatch.setattr(jobs_api, "enqueue_job_embedding", lambda job, source_text=None: _async_append(enqueued, (job, source_text)))
 
     job = await jobs_api.analyze_and_create_job(
         JobAnalyzeRequest(raw_text="Responsibilities and qualifications", source_url="https://jobs.example/role/"),
@@ -144,23 +144,8 @@ async def test_analyze_and_create_job_inserts_extracted_job_and_enqueues(monkeyp
     assert job.title == "Backend Engineer"
     assert job.company == "Midas"
     assert job.source_url == "https://jobs.example/role"
-    assert enqueued == [job]
-
-
-# Creates a manual job and enqueues embeddings for the saved document.
-@pytest.mark.asyncio
-async def test_create_job_enqueues_embedding_after_insert(monkeypatch):
-    enqueued = []
-    monkeypatch.setattr(jobs_api, "enqueue_job_embedding", lambda job: _async_append(enqueued, job))
-
-    job = await jobs_api.create_job(
-        JobCreate(title="Designer", company="Midas", source_url="https://jobs.example/designer/"),
-        _ctx(),
-    )
-
-    assert job.title == "Designer"
-    assert job.source_url == "https://jobs.example/designer"
-    assert enqueued == [job]
+    assert not hasattr(job, "description")
+    assert enqueued == [(job, "Responsibilities and qualifications")]
 
 
 async def _async_value(value):

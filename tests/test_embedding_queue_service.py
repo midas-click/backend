@@ -14,6 +14,8 @@ class FakeEmbeddingOwner:
         self.embedding_status = "disabled"
         self.embedding_error = None
         self.embedded_at = None
+        self.vector_store = None
+        self.vector_chunk_count = 0
         self.saved_snapshots = []
 
     async def save(self):
@@ -42,15 +44,15 @@ async def test_enqueue_job_embedding_imports_task_and_delays(monkeypatch):
     owner = FakeEmbeddingOwner()
     delayed = []
     module = ModuleType("app.worker.embedding_tasks")
-    module.embed_job_task = SimpleNamespace(delay=lambda owner_id: delayed.append(owner_id))
+    module.embed_job_task = SimpleNamespace(delay=lambda owner_id, source_text=None: delayed.append((owner_id, source_text)))
     monkeypatch.setitem(sys.modules, "app.worker.embedding_tasks", module)
     monkeypatch.setattr(embedding_queue_service.settings, "EMBEDDINGS_ENABLED", True)
     monkeypatch.setattr(embedding_queue_service.settings, "EMBEDDINGS_ASYNC_ENABLED", True)
 
-    queued = await embedding_queue_service.enqueue_job_embedding(owner)
+    queued = await embedding_queue_service.enqueue_job_embedding(owner, "Build APIs")
 
     assert queued is True
-    assert delayed == ["owner_1"]
+    assert delayed == [("owner_1", "Build APIs")]
     assert owner.embedding_status == "pending"
     assert owner.embedding_error is None
 

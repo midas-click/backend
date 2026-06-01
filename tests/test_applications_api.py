@@ -184,7 +184,6 @@ async def test_create_applications_batch_deduplicates_jobs_and_uses_default_resu
         source_url="https://jobs.example/1",
         salary_range="$100k",
         tags=["python"],
-        description="Build APIs",
     )
 
     async def fake_calculate_match_score(*args):

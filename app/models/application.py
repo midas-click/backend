@@ -62,7 +62,6 @@ class ApplicationDocument(Document, MidasDocument):
     timeline: list[TimelineEvent] = Field(default_factory=list)
 
     follow_up_date: datetime | None = None
-    notes: str | None = None
 
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
@@ -125,25 +124,10 @@ class ApplicationCreate(BaseModel):
     tags: list[str] = Field(default_factory=list)
     match_score: float | None = None
     match_explanation: str | None = None
-    notes: str | None = None
 
 
 class ApplicationBatchCreate(BaseModel):
     job_ids: list[str] = Field(min_length=1, max_length=100)
-
-
-class ApplicationUpdate(BaseModel):
-    job_title: str | None = None
-    company: str | None = None
-    location: str | None = None
-    salary_expectation: str | None = None
-    initial_contact_date: datetime | None = None
-    resume_id: str | None = None
-    tags: list[str] | None = None
-    match_score: float | None = None
-    match_explanation: str | None = None
-    follow_up_date: datetime | None = None
-    notes: str | None = None
 
 
 class StageChange(BaseModel):

@@ -1,4 +1,4 @@
-"""Applications API — full CRUD + kanban stage management + communication logs."""
+"""Applications API — application tracking, kanban stage management, and communication logs."""
 
 from datetime import UTC, datetime
 
@@ -12,7 +12,6 @@ from app.models.application import (
     ApplicationCreate,
     ApplicationDocument,
     ApplicationStage,
-    ApplicationUpdate,
     CommunicationCreate,
     CommunicationLog,
     StageChange,
@@ -158,7 +157,6 @@ async def create_applications_batch(payload: ApplicationBatchCreate, ctx: dict =
             source_url=job.source_url,
             salary_expectation=job.salary_range,
             tags=job.tags,
-            notes=job.description,
             resume_id=str(resume.id),
             resume_filename=resume.original_filename,
             match_score=match_score,
@@ -174,29 +172,22 @@ async def create_applications_batch(payload: ApplicationBatchCreate, ctx: dict =
     return applications
 
 
-# ── UPDATE ────────────────────────────────────────
-@router.patch("/applications/{app_id}", response_model=ApplicationDocument)
-async def update_application(app_id: str, payload: ApplicationUpdate, ctx: dict = Depends(get_auth_context)):
-    app = _require_application(await ApplicationDocument.get(app_id), ctx)
-
-    update_data = payload.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(app, field, value)
-
-    # Auto-populate resume_filename if resume_id changed
-    if "resume_id" in update_data:
-        resume = await ResumeDocument.get(app.resume_id) if app.resume_id else None
-        app.resume_filename = resume.original_filename if resume else None
-
-    app.updated_at = datetime.now(UTC)
-    return await app.save()
-
-
 # ── DELETE ────────────────────────────────────────
 @router.delete("/applications/{app_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_application(app_id: str, ctx: dict = Depends(get_auth_context)):
-    app = _require_application(await ApplicationDocument.get(app_id), ctx)
-    await app.delete()
+    if not ObjectId.is_valid(app_id):
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    filters: dict = {
+        "_id": ObjectId(app_id),
+        "org_id": ctx["org_id"],
+    }
+    if ctx["profile_id"]:
+        filters["profile_id"] = ctx["profile_id"]
+
+    deleted = await ApplicationDocument.get_motor_collection().find_one_and_delete(filters)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Application not found")
 
 
 # ── MOVE STAGE (Kanban) ───────────────────────────

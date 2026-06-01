@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 from time import perf_counter
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from pymongo.errors import DuplicateKeyError
 
 from app.api.pagination import CursorPage, add_cursor_filter, build_cursor_page
@@ -14,17 +14,14 @@ from app.auth.dependencies import (
     get_current_profile_id,
     get_optional_auth_context,
 )
-from app.config import settings
 from app.models.application import ApplicationDocument
-from app.models.job import JobAnalyzeRequest, JobCreate, JobDocument, JobListItem, JobUpdate
+from app.models.job import JobAnalyzeRequest, JobDocument, JobListItem
 from app.models.resume import ResumeDocument
 from app.services.embedding_queue_service import enqueue_job_embedding
-from app.services.job_chunk_service import (
-    delete_job_chunks,
-)
 from app.services.job_page_validation_service import validate_job_page
 from app.services.llm_service import extract_job_fields
 from app.services.match_score_service import ResumeMatchScore, score_resumes_for_job
+from app.services.vector_cleanup_queue_service import enqueue_job_vector_cleanup
 
 logger = logging.getLogger(__name__)
 
@@ -182,7 +179,6 @@ async def analyze_and_create_job(
         org_id=ctx["org_id"],
         title=extracted.get("title") or "Untitled",
         company=extracted.get("company") or "Unknown",
-        description=payload.raw_text.strip(),
         location=extracted.get("location"),
         remote=bool(extracted.get("remote", False)),
         salary_range=extracted.get("salary_range"),
@@ -192,57 +188,7 @@ async def analyze_and_create_job(
     )
     try:
         job = await job.insert()
-        await enqueue_job_embedding(job)
-        return job
-    except DuplicateKeyError as exc:
-        raise _duplicate_source_url_error() from exc
-
-
-@router.post("/jobs", response_model=JobDocument, status_code=status.HTTP_201_CREATED)
-async def create_job(
-    payload: JobCreate,
-    ctx: dict = Depends(get_auth_context),
-):
-    """Create a job — requires authentication."""
-    create_data = payload.model_dump()
-    if create_data.get("source_url"):
-        create_data["source_url"] = await _ensure_source_url_available(create_data["source_url"])
-    job = JobDocument(
-        user_id=ctx["user_id"],
-        org_id=ctx["org_id"],
-        org_name=ctx["org_name"],
-        **create_data,
-    )
-    try:
-        job = await job.insert()
-        await enqueue_job_embedding(job)
-        return job
-    except DuplicateKeyError as exc:
-        raise _duplicate_source_url_error() from exc
-
-
-# ── UPDATE (owner or team_manager) ────────────────
-@router.patch("/jobs/{job_id}", response_model=JobDocument)
-async def update_job(
-    job_id: str,
-    payload: JobUpdate,
-    ctx: dict = Depends(get_auth_context),
-):
-    """Update a job — only the creator or a team manager can edit."""
-    job = await JobDocument.get(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    if not _can_manage(job, ctx["user_id"], ctx["org_id"], ctx["org_role"]):
-        raise HTTPException(status_code=403, detail="Not authorized to edit this job")
-    update_data = payload.model_dump(exclude_unset=True)
-    if "source_url" in update_data and update_data["source_url"]:
-        update_data["source_url"] = await _ensure_source_url_available(update_data["source_url"], job_id)
-    for field, value in update_data.items():
-        setattr(job, field, value)
-    try:
-        job = await job.save()
-        if settings.EMBEDDINGS_ENABLED and _job_embedding_fields_changed(update_data):
-            await enqueue_job_embedding(job)
+        await enqueue_job_embedding(job, payload.raw_text.strip())
         return job
     except DuplicateKeyError as exc:
         raise _duplicate_source_url_error() from exc
@@ -252,6 +198,7 @@ async def update_job(
 @router.delete("/jobs/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_job(
     job_id: str,
+    background_tasks: BackgroundTasks,
     ctx: dict = Depends(get_auth_context),
 ):
     """Delete a job — only the creator or a team manager can delete."""
@@ -260,12 +207,8 @@ async def delete_job(
         raise HTTPException(status_code=404, detail="Job not found")
     if not _can_manage(job, ctx["user_id"], ctx["org_id"], ctx["org_role"]):
         raise HTTPException(status_code=403, detail="Not authorized to delete this job")
-    await delete_job_chunks(job_id)
     await job.delete()
-
-
-def _job_embedding_fields_changed(update_data: dict) -> bool:
-    return bool({"title", "company", "description", "location", "salary_range", "tags"} & update_data.keys())
+    enqueue_job_vector_cleanup(job, background_tasks)
 
 
 async def _find_job_list_items(
@@ -274,7 +217,6 @@ async def _find_job_list_items(
 ) -> list[JobListItem]:
     cursor = JobDocument.get_motor_collection().find(
         filters,
-        projection={"description": 0},
     ).sort([("created_at", -1), ("_id", -1)]).limit(limit)
     docs = await cursor.to_list(length=limit)
     return [_job_list_item_from_doc(doc) for doc in docs]
@@ -310,5 +252,7 @@ def _job_list_item_from_doc(doc: dict) -> JobListItem:
         embedding_status=doc.get("embedding_status"),
         embedding_error=doc.get("embedding_error"),
         embedded_at=doc.get("embedded_at"),
+        vector_store=doc.get("vector_store"),
+        vector_chunk_count=doc.get("vector_chunk_count", 0),
         created_at=doc["created_at"],
     )

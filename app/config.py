@@ -60,6 +60,12 @@ class Settings(BaseSettings):
     EMBEDDING_THREADS: int | None = None
     EMBEDDING_CACHE_DIR: str = ""
     RESUME_CHUNK_MAX_CHARS: int = 1800
+    VECTOR_STORE: str = "pinecone"
+    PINECONE_API_KEY: str = ""
+    PINECONE_INDEX_NAME: str = "midas-vectors"
+    PINECONE_CLOUD: str = "aws"
+    PINECONE_REGION: str = "us-east-1"
+    PINECONE_TOP_K: int = 10
 
     # ── Background jobs / SQS ────────────────
     CELERY_BROKER_URL: str = "sqs://"

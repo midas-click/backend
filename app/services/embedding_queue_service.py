@@ -23,12 +23,13 @@ async def enqueue_resume_embedding(resume: ResumeDocument) -> bool:
     )
 
 
-async def enqueue_job_embedding(job: JobDocument) -> bool:
+async def enqueue_job_embedding(job: JobDocument, source_text: str | None = None) -> bool:
     return await _enqueue_embedding(
         owner=job,
         task_path="app.worker.embedding_tasks",
         task_name="embed_job_task",
         owner_name="job",
+        source_text=source_text,
     )
 
 
@@ -51,6 +52,7 @@ async def _enqueue_embedding(
     task_path: str,
     task_name: str,
     owner_name: str,
+    source_text: str | None = None,
 ) -> bool:
     if not settings.EMBEDDINGS_ENABLED:
         await mark_embedding_status(owner, "disabled")
@@ -59,13 +61,16 @@ async def _enqueue_embedding(
     await mark_embedding_status(owner, "pending")
 
     if not settings.EMBEDDINGS_ASYNC_ENABLED:
-        await _run_embedding_inline(owner, owner_name)
+        await _run_embedding_inline(owner, owner_name, source_text)
         return False
 
     try:
         module = __import__(task_path, fromlist=[task_name])
         task = getattr(module, task_name)
-        task.delay(str(owner.id))
+        if owner_name == "job":
+            task.delay(str(owner.id), source_text)
+        else:
+            task.delay(str(owner.id))
         return True
     except Exception as exc:
         logger.exception("Failed to enqueue %s embedding for id=%s", owner_name, owner.id)
@@ -73,18 +78,26 @@ async def _enqueue_embedding(
         return False
 
 
-async def _run_embedding_inline(owner: EmbeddingOwner, owner_name: str) -> None:
+async def _run_embedding_inline(
+    owner: EmbeddingOwner,
+    owner_name: str,
+    source_text: str | None = None,
+) -> None:
     logger.info("Embedding async queue disabled; running inline for %s_id=%s", owner_name, owner.id)
     await mark_embedding_status(owner, "processing")
     try:
         if owner_name == "resume":
             from app.services.resume_chunk_service import replace_resume_chunks
 
-            await replace_resume_chunks(owner, owner.sections)
+            chunks = await replace_resume_chunks(owner, owner.sections)
+            owner.vector_store = settings.VECTOR_STORE
+            owner.vector_chunk_count = len(chunks)
         else:
             from app.services.job_chunk_service import replace_job_chunks
 
-            await replace_job_chunks(owner)
+            chunks = await replace_job_chunks(owner, source_text)
+            owner.vector_store = settings.VECTOR_STORE
+            owner.vector_chunk_count = len(chunks)
         await mark_embedding_status(owner, "completed")
     except Exception as exc:
         logger.exception("Inline %s embedding failed for id=%s", owner_name, owner.id)

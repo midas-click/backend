@@ -12,10 +12,8 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from app.config import settings
 from app.models.application import ApplicationDocument
 from app.models.job import JobDocument
-from app.models.job_chunk import JobChunkDocument
 from app.models.profile import ProfileDocument
 from app.models.resume import ResumeDocument
-from app.models.resume_chunk import ResumeChunkDocument
 
 OBSOLETE_INDEXES = {
     "jobs": {
@@ -50,9 +48,7 @@ async def main() -> None:
         document_models=[
             ApplicationDocument,
             ResumeDocument,
-            ResumeChunkDocument,
             JobDocument,
-            JobChunkDocument,
             ProfileDocument,
         ],
     )
@@ -63,6 +59,13 @@ async def main() -> None:
         for index_name in sorted(index_names & existing.keys()):
             print(f"Dropping {collection_name}.{index_name}")
             await collection.drop_index(index_name)
+
+    result = await db.applications.update_many(
+        {"notes": {"$exists": True}},
+        {"$unset": {"notes": ""}},
+    )
+    if result.modified_count:
+        print(f"Removed legacy applications.notes from {result.modified_count} documents")
 
     client.close()
 
