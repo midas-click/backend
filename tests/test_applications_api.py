@@ -186,10 +186,10 @@ async def test_create_applications_batch_deduplicates_jobs_and_uses_default_resu
         tags=["python"],
     )
 
-    async def fake_calculate_match_score(*args):
-        return 72.0
+    async def fake_calculate_match_score_detail(*args, **kwargs):
+        return SimpleNamespace(score=72.0, explanation="Specific score explanation")
 
-    monkeypatch.setattr(applications_api, "calculate_match_score", fake_calculate_match_score)
+    monkeypatch.setattr(applications_api, "calculate_match_score_detail", fake_calculate_match_score_detail)
 
     apps = await applications_api.create_applications_batch(
         ApplicationBatchCreate(job_ids=[job_id, job_id]),
@@ -200,6 +200,7 @@ async def test_create_applications_batch_deduplicates_jobs_and_uses_default_resu
     assert apps[0].resume_id == resume_id
     assert apps[0].resume_filename == "default.pdf"
     assert apps[0].match_score == 72.0
+    assert apps[0].match_explanation == "Specific score explanation"
 
 
 # Appends both communication history and timeline entries for a new communication.

@@ -22,6 +22,8 @@ OBSOLETE_INDEXES = {
         "company_1",
         "created_at_1",
         "created_at_1_company_1",
+        "jobs_user_created_cursor",
+        "jobs_org_created_cursor",
     },
     "applications": {
         "user_id_1",
@@ -66,6 +68,19 @@ async def main() -> None:
     )
     if result.modified_count:
         print(f"Removed legacy applications.notes from {result.modified_count} documents")
+
+    result = await db.jobs.update_many(
+        {
+            "$or": [
+                {"user_id": {"$exists": True}},
+                {"org_id": {"$exists": True}},
+                {"org_name": {"$exists": True}},
+            ],
+        },
+        {"$unset": {"user_id": "", "org_id": "", "org_name": ""}},
+    )
+    if result.modified_count:
+        print(f"Removed legacy job author fields from {result.modified_count} documents")
 
     client.close()
 

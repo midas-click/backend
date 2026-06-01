@@ -1,18 +1,17 @@
-"""Jobs API — public listing, authenticated creation/management with role-based access."""
+"""Jobs API — public listing and authenticated job capture."""
 
 import logging
 from datetime import UTC, datetime, timedelta
 from time import perf_counter
 
 from bson import ObjectId
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pymongo.errors import DuplicateKeyError
 
 from app.api.pagination import CursorPage, add_cursor_filter, build_cursor_page
 from app.auth.dependencies import (
     get_auth_context,
     get_current_profile_id,
-    get_optional_auth_context,
 )
 from app.models.application import ApplicationDocument
 from app.models.job import JobAnalyzeRequest, JobDocument, JobListItem
@@ -21,26 +20,12 @@ from app.services.embedding_queue_service import enqueue_job_embedding
 from app.services.job_page_validation_service import validate_job_page
 from app.services.llm_service import extract_job_fields
 from app.services.match_score_service import ResumeMatchScore, score_resumes_for_job
-from app.services.vector_cleanup_queue_service import enqueue_job_vector_cleanup
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Jobs"])
 
-# Roles that can manage any job in their organization
-_MANAGER_ROLES = {"org:admin"}
-
-
 JobListResponse = CursorPage[JobListItem]
-
-
-def _can_manage(job: JobDocument, user_id: str, org_id: str, org_role: str) -> bool:
-    """Check if the current user can edit/delete this job."""
-    if job.user_id == user_id:
-        return True
-    if org_role in _MANAGER_ROLES and job.org_id == org_id:
-        return True
-    return False
 
 
 def _normalize_source_url(source_url: str | None) -> str | None:
@@ -68,11 +53,9 @@ def _duplicate_source_url_error() -> HTTPException:
 async def list_jobs(
     tag: str | None = None,
     search: str | None = None,
-    creator: str = Query(default="all", pattern="^(all|me|org)$"),
     cursor: str | None = None,
     limit: int = Query(default=25, ge=1, le=100),
     profile_id: str | None = Depends(get_current_profile_id),
-    auth_ctx: dict | None = Depends(get_optional_auth_context),
 ):
     """List jobs — publicly accessible, no auth required.
 
@@ -89,14 +72,6 @@ async def list_jobs(
             {"location": {"$regex": search, "$options": "i"}},
             {"tags": {"$regex": search, "$options": "i"}},
         ]
-    if creator != "all":
-        if not auth_ctx:
-            raise HTTPException(status_code=401, detail="Authentication required for creator filter")
-        if creator == "me":
-            filters["user_id"] = auth_ctx["user_id"]
-        elif creator == "org":
-            filters["org_id"] = auth_ctx["org_id"]
-
     try:
         if profile_id:
             applied_job_ids = await _get_recent_applied_job_object_ids(profile_id)
@@ -165,7 +140,7 @@ async def analyze_and_create_job(
         )
         raise HTTPException(
             status_code=422,
-            detail=f"{validation.reason}. Try opening a page with a full job description.",
+            detail=f"{validation.reason}. Try opening a job posting or company careers page.",
         )
 
     try:
@@ -175,14 +150,11 @@ async def analyze_and_create_job(
         raise HTTPException(status_code=502, detail=f"AI extraction failed: {e}") from e
 
     job = JobDocument(
-        user_id=ctx["user_id"],
-        org_id=ctx["org_id"],
         title=extracted.get("title") or "Untitled",
         company=extracted.get("company") or "Unknown",
         location=extracted.get("location"),
         remote=bool(extracted.get("remote", False)),
         salary_range=extracted.get("salary_range"),
-        org_name=ctx["org_name"],
         source_url=source_url,
         tags=extracted.get("tags", []),
     )
@@ -195,22 +167,6 @@ async def analyze_and_create_job(
 
 
 # ── DELETE (owner or team_manager) ────────────────
-@router.delete("/jobs/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_job(
-    job_id: str,
-    background_tasks: BackgroundTasks,
-    ctx: dict = Depends(get_auth_context),
-):
-    """Delete a job — only the creator or a team manager can delete."""
-    job = await JobDocument.get(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    if not _can_manage(job, ctx["user_id"], ctx["org_id"], ctx["org_role"]):
-        raise HTTPException(status_code=403, detail="Not authorized to delete this job")
-    await job.delete()
-    enqueue_job_vector_cleanup(job, background_tasks)
-
-
 async def _find_job_list_items(
     filters: dict,
     limit: int,
@@ -239,15 +195,12 @@ async def _get_recent_applied_job_object_ids(profile_id: str) -> list[ObjectId]:
 def _job_list_item_from_doc(doc: dict) -> JobListItem:
     return JobListItem(
         id=str(doc["_id"]),
-        user_id=doc.get("user_id", "default"),
-        org_id=doc.get("org_id"),
         title=doc.get("title", "Untitled"),
         company=doc.get("company", "Unknown"),
         location=doc.get("location"),
         remote=doc.get("remote"),
         salary_range=doc.get("salary_range"),
         source_url=doc.get("source_url"),
-        org_name=doc.get("org_name", "Unknown"),
         tags=doc.get("tags") or [],
         embedding_status=doc.get("embedding_status"),
         embedding_error=doc.get("embedding_error"),

@@ -50,7 +50,6 @@ def _ctx():
     return {
         "user_id": "user_1",
         "org_id": "org_1",
-        "org_name": "Midas Org",
         "org_role": "org:member",
         "profile_id": "profile_1",
     }

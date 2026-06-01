@@ -44,9 +44,9 @@ def embed_job_task(self, job_id: str, source_text: str | None = None) -> dict:
 
 
 @celery_app.task(bind=True, max_retries=MAX_RETRIES, name="vectors.delete_job")
-def delete_job_vectors_task(self, org_id: str, job_id: str, vector_chunk_count: int) -> dict:
+def delete_job_vectors_task(self, job_id: str, vector_chunk_count: int) -> dict:
     try:
-        return _run_async(_delete_job_vectors(org_id, job_id, vector_chunk_count))
+        return _run_async(_delete_job_vectors(job_id, vector_chunk_count))
     except Exception as exc:
         _handle_vector_cleanup_retry(self, "job", job_id, exc)
         raise
@@ -97,9 +97,9 @@ async def _embed_job(job_id: str, source_text: str | None = None) -> dict:
     return {"status": "completed", "job_id": job_id, "chunks": len(chunks), "elapsed_seconds": elapsed}
 
 
-async def _delete_job_vectors(org_id: str, job_id: str, vector_chunk_count: int) -> dict:
+async def _delete_job_vectors(job_id: str, vector_chunk_count: int) -> dict:
     started_at = perf_counter()
-    await delete_job_vectors_by_id(org_id, job_id, vector_chunk_count)
+    await delete_job_vectors_by_id(job_id, vector_chunk_count)
     elapsed = perf_counter() - started_at
     logger.info("Job vector cleanup completed id=%s chunks=%s elapsed=%.2fs", job_id, vector_chunk_count, elapsed)
     return {"status": "completed", "job_id": job_id, "chunks": vector_chunk_count, "elapsed_seconds": elapsed}

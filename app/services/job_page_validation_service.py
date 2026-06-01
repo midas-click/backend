@@ -105,6 +105,23 @@ HIRING_TERMS = {
     "hiring",
 }
 
+CAREERS_PAGE_PHRASES = {
+    "careers",
+    "join our team",
+    "join the team",
+    "join us",
+    "our team",
+    "we're always looking",
+    "we are always looking",
+    "talented professionals",
+    "interested in joining us",
+    "send us your resume",
+    "email us",
+    "open positions",
+    "job openings",
+    "current openings",
+}
+
 NEGATIVE_PHRASES = {
     "add to cart",
     "add to bag",
@@ -132,10 +149,15 @@ def validate_job_page(raw_text: str, source_url: str | None = None) -> JobPageVa
     signals: list[str] = []
     score = 0.0
     known_job_domain = _is_known_job_domain(source_url)
+    careers_path = _has_careers_path(source_url)
 
     if known_job_domain:
         score += 0.3
         signals.append("known job board domain")
+
+    if careers_path:
+        score += 0.2
+        signals.append("careers or jobs URL path")
 
     if len(text) >= MIN_TEXT_LENGTH:
         score += 0.15
@@ -161,6 +183,11 @@ def validate_job_page(raw_text: str, source_url: str | None = None) -> JobPageVa
         score += min(0.15, hiring_matches * 0.025)
         signals.append(f"{hiring_matches} hiring terms")
 
+    careers_matches = _count_matches(text, CAREERS_PAGE_PHRASES)
+    if careers_matches:
+        score += min(0.25, careers_matches * 0.05)
+        signals.append(f"{careers_matches} careers page signals")
+
     if _has_salary_signal(text):
         score += 0.08
         signals.append("salary or compensation signal")
@@ -175,18 +202,19 @@ def validate_job_page(raw_text: str, source_url: str | None = None) -> JobPageVa
         signals.append(f"{negative_matches} non-job page signals")
 
     confidence = max(0.0, min(1.0, round(score, 2)))
-    signal_count = section_matches + action_matches + hiring_matches
+    signal_count = section_matches + action_matches + hiring_matches + careers_matches
     has_required_content = (
         len(text) >= MIN_TEXT_LENGTH
         or section_matches + action_matches >= 3
         or (known_job_domain and len(text) >= 180 and signal_count >= 2)
+        or (careers_path and len(text) >= 160 and careers_matches >= 2)
     )
-    threshold = 0.45 if known_job_domain else JOB_PAGE_THRESHOLD
+    threshold = 0.45 if known_job_domain or careers_path else JOB_PAGE_THRESHOLD
     is_job_page = confidence >= threshold and has_required_content
     reason = (
-        "Page looks like a job description"
+        "Page looks like a job or careers page"
         if is_job_page
-        else "This page does not look like a job description"
+        else "This page does not look like a job or careers page"
     )
     return JobPageValidationResult(
         is_job_page=is_job_page,
@@ -213,6 +241,17 @@ def _is_known_job_domain(source_url: str | None) -> bool:
         return False
     hostname = hostname.lower().removeprefix("www.")
     return any(hostname == domain or hostname.endswith(f".{domain}") for domain in JOB_BOARD_DOMAINS)
+
+
+def _has_careers_path(source_url: str | None) -> bool:
+    if not source_url:
+        return False
+    try:
+        path = urlparse(source_url).path.lower()
+    except ValueError:
+        return False
+    parts = {part for part in path.split("/") if part}
+    return bool(parts & {"career", "careers", "job", "jobs", "join-us", "work-with-us"})
 
 
 def _has_salary_signal(text: str) -> bool:

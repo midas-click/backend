@@ -19,7 +19,7 @@ from app.models.application import (
 )
 from app.models.job import JobDocument
 from app.models.resume import ResumeDocument
-from app.services.match_score_service import calculate_match_score, score_resume_for_job
+from app.services.match_score_service import calculate_match_score_detail, score_resume_for_job
 
 router = APIRouter(tags=["Applications"])
 
@@ -144,7 +144,7 @@ async def create_applications_batch(payload: ApplicationBatchCreate, ctx: dict =
     applications: list[ApplicationDocument] = []
     for job_id in job_ids:
         job = jobs_by_id[job_id]
-        match_score = await calculate_match_score(str(job.id), str(resume.id), ctx["org_id"])
+        match = await calculate_match_score_detail(str(job.id), str(resume.id), ctx["org_id"], resume=resume)
         app = ApplicationDocument(
             user_id=ctx["user_id"],
             org_id=ctx["org_id"],
@@ -159,12 +159,8 @@ async def create_applications_batch(payload: ApplicationBatchCreate, ctx: dict =
             tags=job.tags,
             resume_id=str(resume.id),
             resume_filename=resume.original_filename,
-            match_score=match_score,
-            match_explanation=(
-                "Embedding similarity score based on the closest resume sections for this job."
-                if match_score is not None
-                else None
-            ),
+            match_score=match.score,
+            match_explanation=match.explanation,
             timeline=[TimelineEvent(event="Applied", detail="Application created")],
         )
         applications.append(await app.insert())

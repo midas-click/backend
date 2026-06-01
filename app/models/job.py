@@ -10,10 +10,6 @@ from app.models.base import MidasDocument
 
 
 class JobDocument(Document, MidasDocument):
-
-    user_id: str = Field(default="default")       # Clerk user ID (sub claim)
-    org_id: str = Field(default="default")        # Clerk organization ID
-
     title: str
     company: str
     location: str | None = None
@@ -21,8 +17,6 @@ class JobDocument(Document, MidasDocument):
     salary_range: str | None = None
 
     source_url: str | None = None
-    org_name: str = "Unknown"     # denormalized org name for display
-
 
     tags: list[str] = Field(default_factory=list)
 
@@ -42,14 +36,6 @@ class JobDocument(Document, MidasDocument):
                 name="jobs_created_cursor",
             ),
             IndexModel(
-                [("user_id", ASCENDING), ("created_at", DESCENDING), ("_id", DESCENDING)],
-                name="jobs_user_created_cursor",
-            ),
-            IndexModel(
-                [("org_id", ASCENDING), ("created_at", DESCENDING), ("_id", DESCENDING)],
-                name="jobs_org_created_cursor",
-            ),
-            IndexModel(
                 [("source_url", ASCENDING)],
                 unique=True,
                 partialFilterExpression={"source_url": {"$type": "string"}},
@@ -65,15 +51,12 @@ class JobAnalyzeRequest(BaseModel):
 
 class JobListItem(BaseModel):
     id: str
-    user_id: str
-    org_id: str | None = None
     title: str
     company: str
     location: str | None = None
     remote: bool | None = None
     salary_range: str | None = None
     source_url: str | None = None
-    org_name: str
     tags: list[str] = Field(default_factory=list)
     embedding_status: str | None = None
     embedding_error: str | None = None

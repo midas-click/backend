@@ -37,6 +37,7 @@ class VectorMatch:
 
 
 _index: Any | None = None
+JOB_VECTOR_NAMESPACE = "jobs"
 
 
 def job_vector_id(job_id: str, chunk_index: int) -> str:
@@ -85,8 +86,6 @@ async def upsert_job_chunks(job: JobDocument, source_text: str | None = None) ->
             metadata={
                 "kind": "job",
                 "job_id": str(job.id),
-                "user_id": job.user_id,
-                "org_id": job.org_id,
                 "chunk_index": chunk.chunk_index,
                 "content": chunk.content,
                 "embedding_model": settings.EMBEDDING_MODEL,
@@ -96,7 +95,7 @@ async def upsert_job_chunks(job: JobDocument, source_text: str | None = None) ->
         for chunk, embedding in zip(chunks, embeddings, strict=True)
     ]
     await delete_job_vectors(job)
-    await _upsert_vectors(job.org_id, vectors)
+    await _upsert_vectors(JOB_VECTOR_NAMESPACE, vectors)
     return vectors
 
 
@@ -135,7 +134,6 @@ async def upsert_resume_chunks(
 
 async def delete_job_vectors(job: JobDocument) -> None:
     await delete_job_vectors_by_id(
-        org_id=job.org_id,
         job_id=str(job.id),
         vector_chunk_count=getattr(job, "vector_chunk_count", 0) or 0,
     )
@@ -149,10 +147,10 @@ async def delete_resume_vectors(resume: ResumeDocument) -> None:
     )
 
 
-async def delete_job_vectors_by_id(org_id: str, job_id: str, vector_chunk_count: int) -> None:
+async def delete_job_vectors_by_id(job_id: str, vector_chunk_count: int) -> None:
     ids = [job_vector_id(job_id, index) for index in range(vector_chunk_count or 0)]
     if ids:
-        await _delete_vectors(org_id, ids)
+        await _delete_vectors(JOB_VECTOR_NAMESPACE, ids)
 
 
 async def delete_resume_vectors_by_id(org_id: str, resume_id: str, vector_chunk_count: int) -> None:
@@ -169,7 +167,12 @@ async def fetch_job_vectors(job: JobDocument) -> list[StoredVector]:
     if not ids:
         return []
 
-    response = await asyncio.to_thread(_get_index().fetch, ids=ids, namespace=job.org_id)
+    try:
+        response = await asyncio.to_thread(_get_index().fetch, ids=ids, namespace=JOB_VECTOR_NAMESPACE)
+    except Exception as exc:
+        if _is_namespace_not_found(exc):
+            return []
+        raise
     vectors = _response_vectors(response)
     return [
         StoredVector(
@@ -195,14 +198,19 @@ async def query_resume_chunks(
     if resume_id:
         filters["resume_id"] = {"$eq": resume_id}
 
-    response = await asyncio.to_thread(
-        _get_index().query,
-        vector=job_vector,
-        namespace=org_id,
-        filter=filters,
-        top_k=top_k or settings.PINECONE_TOP_K,
-        include_metadata=True,
-    )
+    try:
+        response = await asyncio.to_thread(
+            _get_index().query,
+            vector=job_vector,
+            namespace=org_id,
+            filter=filters,
+            top_k=top_k or settings.PINECONE_TOP_K,
+            include_metadata=True,
+        )
+    except Exception as exc:
+        if _is_namespace_not_found(exc):
+            return []
+        raise
     return [
         VectorMatch(
             id=str(_match_get(match, "id")),
@@ -226,7 +234,12 @@ async def _upsert_vectors(namespace: str, vectors: list[StoredVector]) -> None:
 
 
 async def _delete_vectors(namespace: str, ids: list[str]) -> None:
-    await asyncio.to_thread(_get_index().delete, ids=ids, namespace=namespace)
+    try:
+        await asyncio.to_thread(_get_index().delete, ids=ids, namespace=namespace)
+    except Exception as exc:
+        if _is_namespace_not_found(exc):
+            return
+        raise
 
 
 def _get_index() -> Any:
@@ -265,6 +278,11 @@ def _index_names(indexes: Any) -> set[str]:
         else:
             names.add(str(item))
     return {name for name in names if name}
+
+
+def _is_namespace_not_found(exc: Exception) -> bool:
+    text = str(exc).lower()
+    return "namespace not found" in text
 
 
 def _job_text(job: JobDocument, source_text: str | None = None) -> str:

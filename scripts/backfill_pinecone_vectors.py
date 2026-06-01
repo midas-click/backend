@@ -59,7 +59,10 @@ async def main() -> None:
             job.embedding_error = None
             job.embedded_at = datetime.now(UTC)
             await job.save()
-            await db.jobs.update_one({"_id": raw_doc["_id"]}, {"$unset": {"description": ""}})
+            await db.jobs.update_one(
+                {"_id": raw_doc["_id"]},
+                {"$unset": {"description": "", "user_id": "", "org_id": "", "org_name": ""}},
+            )
         job_count += 1
         job_chunk_count += len(chunks)
         print(f"{'Would embed' if args.dry_run else 'Embedded'} job {job.id}: {len(chunks)} chunks")

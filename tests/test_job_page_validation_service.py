@@ -55,6 +55,32 @@ def test_validate_job_page_accepts_known_board_with_concise_sales_job():
     assert "known job board domain" in result.signals
 
 
+def test_validate_job_page_accepts_company_careers_landing_page():
+    text = """
+AACI Group
+Home
+Who We Are
+Case for Change
+Partners
+Careers
+Careers
+Join Our Team
+We're always looking for talented professionals to join our team and become part of our growing organization dedicated to excellence in insurance and risk management.
+
+Interested in Joining Us?
+If you'd like to be part of our team, we'd love to hear from you.
+
+Email Us
+AACI develops technology, insurance, and protection systems that help property owners stay covered and communities stay resilient in the face of growing climate risk.
+"""
+
+    result = validate_job_page(text, "https://aaci.example/careers")
+
+    assert result.is_job_page is True
+    assert "careers or jobs URL path" in result.signals
+    assert any("careers page signals" in signal for signal in result.signals)
+
+
 def test_validate_job_page_rejects_blog_article():
     text = """
     How to plan your next product launch
@@ -66,7 +92,7 @@ def test_validate_job_page_rejects_blog_article():
     result = validate_job_page(text, "https://example.com/blog/product-launch")
 
     assert result.is_job_page is False
-    assert result.reason == "This page does not look like a job description"
+    assert result.reason == "This page does not look like a job or careers page"
 
 
 def test_validate_job_page_rejects_shopping_page():
