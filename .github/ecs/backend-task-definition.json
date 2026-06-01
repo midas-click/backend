@@ -2,7 +2,7 @@
     "containerDefinitions": [
         {
             "name": "backend",
-            "image": "568175862303.dkr.ecr.us-east-2.amazonaws.com/midas-backend@sha256:7c30f185cfd01ad9cb112d43c9d35f71cb4f9af13083593146053f4481b25d88",
+            "image": "568175862303.dkr.ecr.us-east-2.amazonaws.com/midas-backend:d95b69861f182de672450b46883f4ca6b766ac2e",
             "cpu": 0,
             "portMappings": [
                 {
@@ -28,6 +28,14 @@
                     "value": "us-east-2"
                 },
                 {
+                    "name": "SQS_QUEUE_URL",
+                    "value": "https://sqs.us-east-2.amazonaws.com/568175862303/midas-celery"
+                },
+                {
+                    "name": "PINECONE_INDEX_NAME",
+                    "value": "midas-click"
+                },
+                {
                     "name": "CLERK_JWKS_URL",
                     "value": "https://ace-molly-26.clerk.accounts.dev/.well-known/jwks.json"
                 },
@@ -40,8 +48,8 @@
                     "value": "true"
                 },
                 {
-                    "name": "CELERY_TASK_DEFAULT_QUEUE",
-                    "value": "midas-celery"
+                    "name": "SQS_POLLING_INTERVAL",
+                    "value": "1"
                 },
                 {
                     "name": "CORS_ORIGINS",
@@ -60,20 +68,12 @@
                     "value": "https://api.deepseek.com/v1"
                 },
                 {
+                    "name": "CELERY_TASK_DEFAULT_QUEUE",
+                    "value": "midas-celery"
+                },
+                {
                     "name": "EMBEDDINGS_ENABLED",
                     "value": "true"
-                },
-                {
-                    "name": "MONGO_DB_NAME",
-                    "value": "midas"
-                },
-                {
-                    "name": "LLM_MODEL",
-                    "value": "deepseek-chat"
-                },
-                {
-                    "name": "SQS_QUEUE_URL",
-                    "value": "https://sqs.us-east-2.amazonaws.com/568175862303/midas-celery"
                 },
                 {
                     "name": "SQS_VISIBILITY_TIMEOUT",
@@ -84,11 +84,14 @@
                     "value": "20"
                 },
                 {
-                    "name": "SQS_POLLING_INTERVAL",
-                    "value": "1"
+                    "name": "MONGO_DB_NAME",
+                    "value": "midas"
+                },
+                {
+                    "name": "LLM_MODEL",
+                    "value": "deepseek-chat"
                 }
             ],
-            "environmentFiles": [],
             "mountPoints": [],
             "volumesFrom": [],
             "secrets": [
@@ -99,9 +102,12 @@
                 {
                     "name": "MONGODB_URI",
                     "valueFrom": "arn:aws:secretsmanager:us-east-2:568175862303:secret:midas-click-env-6sTWZE:MONGODB_URI::"
+                },
+                {
+                    "name": "PINECONE_API_KEY",
+                    "valueFrom": "arn:aws:secretsmanager:us-east-2:568175862303:secret:midas-click-env-6sTWZE:PINECONE_API_KEY::"
                 }
             ],
-            "ulimits": [],
             "logConfiguration": {
                 "logDriver": "awslogs",
                 "options": {
