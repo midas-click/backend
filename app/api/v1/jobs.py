@@ -140,7 +140,12 @@ async def analyze_and_create_job(
         )
         raise HTTPException(
             status_code=422,
-            detail=f"{validation.reason}. Try opening a job posting or company careers page.",
+            detail={
+                "message": f"{validation.reason}. Try opening a job posting or company careers page.",
+                "confidence": validation.confidence,
+                "signals": validation.signals,
+                "source_url": source_url,
+            },
         )
 
     try:

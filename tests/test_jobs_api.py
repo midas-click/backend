@@ -92,7 +92,7 @@ async def test_analyze_and_create_job_rejects_non_job_page_before_llm(monkeypatc
             is_job_page=False,
             confidence=0.1,
             reason="This page does not look like a job description",
-            signals=[],
+            signals=["page text is too short"],
         ),
     )
 
@@ -103,6 +103,12 @@ async def test_analyze_and_create_job_rejects_non_job_page_before_llm(monkeypatc
         )
 
     assert exc.value.status_code == 422
+    assert exc.value.detail["message"] == (
+        "This page does not look like a job description. "
+        "Try opening a job posting or company careers page."
+    )
+    assert exc.value.detail["confidence"] == 0.1
+    assert exc.value.detail["signals"] == ["page text is too short"]
     assert llm_called is False
     assert FakeJobDocument.inserted == []
 

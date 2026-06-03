@@ -55,6 +55,26 @@ def test_validate_job_page_accepts_known_board_with_concise_sales_job():
     assert "known job board domain" in result.signals
 
 
+def test_validate_job_page_accepts_extension_main_capture_format():
+    text = """
+    Page title: Senior Frontend Engineer
+    URL: https://company.example/jobs/frontend-engineer
+    Captured from: main
+
+    Senior Frontend Engineer
+    About the role
+    You will build React interfaces, collaborate with designers, and improve customer workflows.
+    Requirements include TypeScript, accessibility, API integration, and production experience.
+    This is a full-time hybrid role with compensation and benefits.
+    Apply now.
+    """
+
+    result = validate_job_page(text, "https://company.example/jobs/frontend-engineer")
+
+    assert result.is_job_page is True
+    assert "careers or jobs URL path" in result.signals
+
+
 def test_validate_job_page_accepts_company_careers_landing_page():
     text = """
 AACI Group
