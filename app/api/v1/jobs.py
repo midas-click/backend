@@ -120,11 +120,10 @@ async def get_resume_match_scores(
     return await score_resumes_for_job(job_id, resumes, ctx["org_id"])
 
 
-# ── CREATE (authenticated) ────────────────────────
+# ── CREATE (public, validated) ────────────────────
 @router.post("/jobs/analyze", response_model=JobDocument, status_code=status.HTTP_201_CREATED)
 async def analyze_and_create_job(
     payload: JobAnalyzeRequest,
-    ctx: dict = Depends(get_auth_context),
 ):
     """Paste a raw job description, let LLM extract structured fields, and save."""
     if not payload.raw_text.strip():

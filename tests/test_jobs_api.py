@@ -99,7 +99,6 @@ async def test_analyze_and_create_job_rejects_non_job_page_before_llm(monkeypatc
     with pytest.raises(HTTPException) as exc:
         await jobs_api.analyze_and_create_job(
             JobAnalyzeRequest(raw_text="shopping cart", source_url="https://shop.example/product"),
-            _ctx(),
         )
 
     assert exc.value.status_code == 422
@@ -143,7 +142,6 @@ async def test_analyze_and_create_job_inserts_extracted_job_and_enqueues(monkeyp
 
     job = await jobs_api.analyze_and_create_job(
         JobAnalyzeRequest(raw_text="Responsibilities and qualifications", source_url="https://jobs.example/role/"),
-        _ctx(),
     )
 
     assert job.title == "Backend Engineer"
