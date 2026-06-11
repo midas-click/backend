@@ -53,7 +53,7 @@
                 },
                 {
                     "name": "CORS_ORIGINS",
-                    "value": "https://movup.pro,https://www.movup.pro"
+                    "value": "https://midas-click.movup.pro"
                 },
                 {
                     "name": "S3_BUCKET_NAME",
